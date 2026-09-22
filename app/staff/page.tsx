@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Check, ClipboardList, Copy, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, ShieldCheck, ShoppingCart, UserPlus, Warehouse, X } from 'lucide-react'
+import { Ban, Bell, Check, ClipboardList, Copy, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, RotateCcw, SendHorizontal, ShieldCheck, ShoppingCart, Trash2, UserPlus, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 
 type Perm = { view: boolean; edit: boolean }
-type Staff = { id: string; email: string; is_admin: boolean; staff_permissions: { module: string; can_view: boolean; can_edit: boolean }[] }
+type Staff = { id: string; email: string; is_admin: boolean; banned: boolean; staff_permissions: { module: string; can_view: boolean; can_edit: boolean }[] }
 const modules = [
   { key: 'contracts', label: 'التعاقدات والقسم الفني' },
   { key: 'printing', label: 'المطبعة' },
@@ -42,11 +42,13 @@ export default function StaffPage() {
   const [permissions, setPermissions] = useState<Record<string, Perm>>(emptyPermissions)
   const [inviteLink, setInviteLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Staff | null>(null)
+  const [actionLoading, setActionLoading] = useState('')
   const supabase = createClient()
 
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase.from('staff_profiles').select('id, email, is_admin, staff_permissions(module, can_view, can_edit)').order('created_at')
+    const { data } = await supabase.from('staff_profiles').select('id, email, is_admin, banned, staff_permissions(module, can_view, can_edit)').order('created_at')
     setStaff((data as any) ?? [])
     setLoading(false)
   }
@@ -91,6 +93,30 @@ export default function StaffPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const toggleBan = async (member: Staff) => {
+    setActionLoading(member.id)
+    const res = await fetch('/api/staff', { method: 'PATCH', body: JSON.stringify({ staffId: member.id, action: member.banned ? 'unban' : 'ban' }) })
+    setActionLoading('')
+    if (res.ok) load()
+  }
+
+  const resend = async (member: Staff) => {
+    setActionLoading(member.id)
+    const res = await fetch('/api/staff', { method: 'PUT', body: JSON.stringify({ email: member.email }) })
+    const result = await res.json()
+    setActionLoading('')
+    if (res.ok && result.inviteLink) { setInviteLink(result.inviteLink); setEditing(null); setFormOpen(true) }
+  }
+
+  const confirmDeleteMember = async () => {
+    if (!confirmDelete) return
+    setActionLoading(confirmDelete.id)
+    const res = await fetch('/api/staff', { method: 'DELETE', body: JSON.stringify({ staffId: confirmDelete.id }) })
+    setActionLoading('')
+    setConfirmDelete(null)
+    if (res.ok) load()
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#f7f8fa] text-[#1a2540]">
       <aside className={`fixed inset-y-0 right-0 z-40 flex w-[252px] flex-col border-l border-[#e8ebf0] bg-white px-5 py-6 transition-transform lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
@@ -108,7 +134,7 @@ export default function StaffPage() {
             <>
               <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />صلاحيات مخصصة لكل قسم</div><h2 className="text-2xl font-bold sm:text-3xl">فريق العمل</h2><p className="mt-2 text-sm text-[#8d97a7]">أضف موظفاً بالإيميل وحدد الأقسام التي يمكنه رؤيتها وتعديلها — هتاخد لينك دعوة تبعتيه له بنفسك.</p></div><button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><UserPlus size={18} />إضافة موظف</button></div>
               <section className="rounded-2xl border border-[#e8ebf0] bg-white">
-                <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-right text-sm"><thead><tr className="border-b border-[#eef0f3] text-xs text-[#9ba4b2]"><th className="px-5 py-4">الإيميل</th><th className="px-5 py-4">الأقسام المتاحة</th><th className="px-5 py-4">إجراء</th></tr></thead><tbody>{staff.filter(m => !m.is_admin).map(member => <tr key={member.id} className="border-b border-[#f1f3f5] last:border-0"><td className="px-5 py-4 font-semibold">{member.email}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">{accessSummary(member).length ? accessSummary(member).map(label => <span key={label} className="rounded-full bg-[#fff0ed] px-2.5 py-1 text-[11px] font-medium text-[#d8573a]">{label}</span>) : <span className="text-xs text-[#9ba4b2]">لا يوجد وصول بعد</span>}</div></td><td className="px-5 py-4"><button onClick={() => openEdit(member)} className="rounded-lg border border-[#e8ebf0] px-3 py-2 text-xs font-semibold text-[#d8573a]">تعديل الصلاحيات</button></td></tr>)}</tbody></table>{!loading && staff.filter(m => !m.is_admin).length === 0 && <p className="p-8 text-center text-sm text-[#9ba4b2]">لا يوجد موظفين مضافين بعد.</p>}</div>
+                <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b border-[#eef0f3] text-xs text-[#9ba4b2]"><th className="px-5 py-4">الإيميل</th><th className="px-5 py-4">الأقسام المتاحة</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">إجراءات</th></tr></thead><tbody>{staff.filter(m => !m.is_admin).map(member => <tr key={member.id} className="border-b border-[#f1f3f5] last:border-0"><td className="px-5 py-4 font-semibold">{member.email}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">{accessSummary(member).length ? accessSummary(member).map(label => <span key={label} className="rounded-full bg-[#fff0ed] px-2.5 py-1 text-[11px] font-medium text-[#d8573a]">{label}</span>) : <span className="text-xs text-[#9ba4b2]">لا يوجد وصول بعد</span>}</div></td><td className="px-5 py-4">{member.banned ? <span className="rounded-full bg-[#fce8e6] px-3 py-1 text-xs font-semibold text-[#c84c3b]">موقوف</span> : <span className="rounded-full bg-[#e9f7ef] px-3 py-1 text-xs font-semibold text-[#25824a]">نشط</span>}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-2"><button onClick={() => openEdit(member)} className="rounded-lg border border-[#e8ebf0] px-3 py-2 text-xs font-semibold text-[#d8573a]">تعديل الصلاحيات</button><button disabled={actionLoading === member.id} onClick={() => toggleBan(member)} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${member.banned ? 'border-[#e8ebf0] text-[#25824a]' : 'border-[#e8ebf0] text-[#b26b16]'} disabled:opacity-50`}>{member.banned ? <><RotateCcw size={13} />تفعيل</> : <><Ban size={13} />إيقاف</>}</button><button disabled={actionLoading === member.id} onClick={() => resend(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8ebf0] px-3 py-2 text-xs font-semibold text-[#69758a] disabled:opacity-50"><SendHorizontal size={13} />إعادة إرسال لينك</button><button onClick={() => setConfirmDelete(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8ebf0] px-3 py-2 text-xs font-semibold text-[#c84c3b]"><Trash2 size={13} />حذف</button></div></td></tr>)}</tbody></table>{!loading && staff.filter(m => !m.is_admin).length === 0 && <p className="p-8 text-center text-sm text-[#9ba4b2]">لا يوجد موظفين مضافين بعد.</p>}</div>
               </section>
             </>
           )}
@@ -142,6 +168,16 @@ export default function StaffPage() {
                 </form>
               </>
             )}
+          </section>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a2540]/30 p-3 sm:p-6">
+          <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-bold">حذف {confirmDelete.email}؟</h2>
+            <p className="mt-2 text-sm text-[#69758a]">هيتشال حسابه وصلاحياته نهائيًا ومش هيقدر يدخل تاني. الإجراء ده مايترجعش.</p>
+            <div className="mt-5 flex justify-end gap-3"><button onClick={() => setConfirmDelete(null)} className="rounded-xl border border-[#e8ebf0] px-4 py-2.5 text-sm font-semibold">إلغاء</button><button disabled={Boolean(actionLoading)} onClick={confirmDeleteMember} className="rounded-xl bg-[#c84c3b] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">حذف نهائي</button></div>
           </section>
         </div>
       )}
