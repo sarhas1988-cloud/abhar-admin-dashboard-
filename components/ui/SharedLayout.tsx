@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, ClipboardList, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
-import { NotificationBell } from '@/components/NotificationBell'
+import { NotificationBell } from '@/components/ui/NotificationBell'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 
 type Props = { title: string; subtitle?: string; children: React.ReactNode }
