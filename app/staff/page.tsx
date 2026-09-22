@@ -102,7 +102,7 @@ export default function StaffPage() {
 
   const resend = async (member: Staff) => {
     setActionLoading(member.id)
-    const res = await fetch('/api/staff', { method: 'PUT', body: JSON.stringify({ email: member.email }) })
+    const res = await fetch('/api/staff', { method: 'PUT', body: JSON.stringify({ staffId: member.id }) })
     const result = await res.json()
     setActionLoading('')
     if (res.ok && result.inviteLink) { setInviteLink(result.inviteLink); setEditing(null); setFormOpen(true) }

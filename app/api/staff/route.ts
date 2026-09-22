@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const MODULES = ['contracts', 'printing', 'platforms', 'warehouse', 'orders'] as const
-const BAN_DURATION = '876000h' // ~100 سنة، أقرب حاجة لإيقاف دائم قابل للتراجع
+const BAN_DURATION = '876000h'
 
 async function requireAdmin() {
   const supabase = await createServerClient()
@@ -14,6 +15,11 @@ async function requireAdmin() {
   return { user }
 }
 
+function newToken() {
+  return randomBytes(32).toString('base64url')
+}
+
+// إضافة موظف: نولّد توكن دعوة ونرجّع لينك بتاعنا
 export async function POST(request: Request) {
   const check = await requireAdmin()
   if (check.error) return check.error
@@ -23,26 +29,22 @@ export async function POST(request: Request) {
   if (!email) return NextResponse.json({ error: 'الإيميل مطلوب' }, { status: 400 })
 
   const admin = createAdminClient()
-  const redirectTo = `${new URL(request.url).origin}/auth/callback`
-  const { data: linkData, error: inviteError } = await admin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo } })
-  if (inviteError || !linkData?.user) return NextResponse.json({ error: inviteError?.message ?? 'فشلت الدعوة' }, { status: 400 })
 
-  const newUserId = linkData.user.id
-  const inviteLink = linkData.properties.action_link
+  // نمنع تكرار الإيميل (سواء في auth.users أو في دعوات فعّالة)
+  const { data: existingProfile } = await admin.from('staff_profiles').select('id').eq('email', email).maybeSingle()
+  if (existingProfile) return NextResponse.json({ error: 'الإيميل ده مسجّل قبل كده' }, { status: 400 })
 
-  const { error: profileError } = await admin.from('staff_profiles').insert({ id: newUserId, email, is_admin: false, banned: false })
-  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
+  const token = newToken()
+  const { error: inviteError } = await admin.from('staff_invitations').insert({
+    token, email, permissions, created_by: check.user.id,
+  })
+  if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 })
 
-  const permissionRows = MODULES.map(moduleKey => ({
-    staff_id: newUserId, module: moduleKey,
-    can_view: permissions?.[moduleKey]?.view ?? false, can_edit: permissions?.[moduleKey]?.edit ?? false,
-  }))
-  const { error: permError } = await admin.from('staff_permissions').insert(permissionRows)
-  if (permError) return NextResponse.json({ error: permError.message }, { status: 400 })
-
-  return NextResponse.json({ success: true, userId: newUserId, inviteLink })
+  const inviteLink = `${new URL(request.url).origin}/invite/${token}`
+  return NextResponse.json({ success: true, inviteLink })
 }
 
+// تعديل صلاحيات / إيقاف / تفعيل موظف موجود
 export async function PATCH(request: Request) {
   const check = await requireAdmin()
   if (check.error) return check.error
@@ -61,7 +63,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  // action === 'permissions' (default)
   for (const moduleKey of MODULES) {
     await admin.from('staff_permissions').update({
       can_view: permissions?.[moduleKey]?.view ?? false, can_edit: permissions?.[moduleKey]?.edit ?? false,
@@ -70,21 +71,37 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ success: true })
 }
 
+// إعادة إرسال لينك دعوة (لو الأدمن ضاع منه اللينك القديم)
 export async function PUT(request: Request) {
-  // إعادة إرسال لينك تعيين كلمة مرور لموظف موجود (recovery link)
   const check = await requireAdmin()
   if (check.error) return check.error
 
   const body = await request.json()
-  const { email } = body as { email: string }
-  if (!email) return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 })
-
+  const { email, staffId } = body as { email?: string; staffId?: string }
   const admin = createAdminClient()
-  const redirectTo = `${new URL(request.url).origin}/auth/callback`
-  const { data: linkData, error } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })
-  if (error || !linkData) return NextResponse.json({ error: error?.message ?? 'فشلت العملية' }, { status: 400 })
 
-  return NextResponse.json({ success: true, inviteLink: linkData.properties.action_link })
+  // لو الموظف مضاف في auth بالفعل → توليد لينك تغيير كلمة مرور بتاعنا
+  if (staffId) {
+    const { data: profile } = await admin.from('staff_profiles').select('email').eq('id', staffId).maybeSingle()
+    if (!profile) return NextResponse.json({ error: 'الموظف مش موجود' }, { status: 404 })
+    // نمسح أي دعوة قديمة لنفس الإيميل ونصدر توكن reset جديد
+    await admin.from('staff_invitations').delete().eq('email', profile.email)
+    // نستخدم نفس جدول الدعوات، لكن نعلّم إنها reset مش دعوة أولى — الصلاحيات الحالية بتاعتها بتفضل زي ما هي
+    const { data: perms } = await admin.from('staff_permissions').select('module, can_view, can_edit').eq('staff_id', staffId)
+    const permsMap: Record<string, { view: boolean; edit: boolean }> = {}
+    perms?.forEach(p => { permsMap[p.module] = { view: p.can_view, edit: p.can_edit } })
+    const token = newToken()
+    await admin.from('staff_invitations').insert({ token, email: profile.email, permissions: permsMap, created_by: check.user.id })
+    return NextResponse.json({ success: true, inviteLink: `${new URL(request.url).origin}/invite/${token}` })
+  }
+
+  // لو الموظف مضاف كدعوة بس ولسه ما فعّلش → نعيد اللينك القديم أو نصدر جديد
+  if (email) {
+    const { data: existing } = await admin.from('staff_invitations').select('token').eq('email', email).is('used_at', null).maybeSingle()
+    if (existing) return NextResponse.json({ success: true, inviteLink: `${new URL(request.url).origin}/invite/${existing.token}` })
+  }
+
+  return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 })
 }
 
 export async function DELETE(request: Request) {
@@ -92,14 +109,22 @@ export async function DELETE(request: Request) {
   if (check.error) return check.error
 
   const body = await request.json()
-  const { staffId } = body as { staffId: string }
-  if (!staffId) return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 })
-
+  const { staffId, email } = body as { staffId?: string; email?: string }
   const admin = createAdminClient()
-  const { error: authError } = await admin.auth.admin.deleteUser(staffId)
-  if (authError) return NextResponse.json({ error: authError.message }, { status: 400 })
-  // staff_permissions بتتمسح تلقائي (on delete cascade) لما staff_profiles تتمسح
-  await admin.from('staff_profiles').delete().eq('id', staffId)
 
-  return NextResponse.json({ success: true })
+  if (staffId) {
+    const { data: profile } = await admin.from('staff_profiles').select('email').eq('id', staffId).maybeSingle()
+    const { error: authError } = await admin.auth.admin.deleteUser(staffId)
+    if (authError) return NextResponse.json({ error: authError.message }, { status: 400 })
+    await admin.from('staff_profiles').delete().eq('id', staffId)
+    if (profile?.email) await admin.from('staff_invitations').delete().eq('email', profile.email)
+    return NextResponse.json({ success: true })
+  }
+
+  if (email) {
+    await admin.from('staff_invitations').delete().eq('email', email)
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 })
 }
