@@ -18,10 +18,13 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
   const redirectTo = `${new URL(request.url).origin}/auth/callback`
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo })
-  if (inviteError || !invited?.user) return NextResponse.json({ error: inviteError?.message ?? 'فشلت الدعوة' }, { status: 400 })
+  const { data: linkData, error: inviteError } = await admin.auth.admin.generateLink({
+    type: 'invite', email, options: { redirectTo },
+  })
+  if (inviteError || !linkData?.user) return NextResponse.json({ error: inviteError?.message ?? 'فشلت الدعوة' }, { status: 400 })
 
-  const newUserId = invited.user.id
+  const newUserId = linkData.user.id
+  const inviteLink = linkData.properties.action_link
 
   const { error: profileError } = await admin.from('staff_profiles').insert({ id: newUserId, email, is_admin: false })
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
   const { error: permError } = await admin.from('staff_permissions').insert(permissionRows)
   if (permError) return NextResponse.json({ error: permError.message }, { status: 400 })
 
-  return NextResponse.json({ success: true, userId: newUserId })
+  return NextResponse.json({ success: true, userId: newUserId, inviteLink })
 }
 
 export async function PATCH(request: Request) {
