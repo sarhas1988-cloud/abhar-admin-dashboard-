@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ClipboardList, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, ShieldCheck, ShoppingCart, UserPlus, Warehouse, X } from 'lucide-react'
+import { Bell, Check, ClipboardList, Copy, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, ShieldCheck, ShoppingCart, UserPlus, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 
@@ -40,6 +40,8 @@ export default function StaffPage() {
   const [editing, setEditing] = useState<Staff | null>(null)
   const [email, setEmail] = useState('')
   const [permissions, setPermissions] = useState<Record<string, Perm>>(emptyPermissions)
+  const [inviteLink, setInviteLink] = useState('')
+  const [copied, setCopied] = useState(false)
   const supabase = createClient()
 
   const load = async () => {
@@ -52,7 +54,7 @@ export default function StaffPage() {
 
   const accessSummary = (member: Staff) => modules.filter(m => member.staff_permissions?.find(p => p.module === m.key)?.can_view).map(m => m.label)
 
-  const openCreate = () => { setEditing(null); setEmail(''); setPermissions(emptyPermissions); setError(''); setFormOpen(true) }
+  const openCreate = () => { setEditing(null); setEmail(''); setPermissions(emptyPermissions); setError(''); setInviteLink(''); setFormOpen(true) }
   const openEdit = (member: Staff) => {
     setEditing(member); setEmail(member.email); setError('')
     const map = { ...emptyPermissions }
@@ -78,8 +80,15 @@ export default function StaffPage() {
     const result = await res.json()
     setSaving(false)
     if (!res.ok) { setError(result.error ?? 'حصل خطأ'); return }
+    if (!editing && result.inviteLink) { setInviteLink(result.inviteLink); load(); return }
     setFormOpen(false)
     load()
+  }
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -97,7 +106,7 @@ export default function StaffPage() {
         <div className="mx-auto max-w-[1400px] p-5 pb-24 sm:p-8 lg:pb-8">
           {!accessLoading && !isAdmin ? <p className="rounded-xl border border-[#e8ebf0] bg-white p-6 text-center text-sm text-[#9ba4b2]">هذا القسم للأدمن فقط.</p> : (
             <>
-              <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />صلاحيات مخصصة لكل قسم</div><h2 className="text-2xl font-bold sm:text-3xl">فريق العمل</h2><p className="mt-2 text-sm text-[#8d97a7]">أضف موظفاً بالإيميل وحدد الأقسام التي يمكنه رؤيتها وتعديلها — هيوصله إيميل دعوة لتفعيل حسابه.</p></div><button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><UserPlus size={18} />إضافة موظف</button></div>
+              <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />صلاحيات مخصصة لكل قسم</div><h2 className="text-2xl font-bold sm:text-3xl">فريق العمل</h2><p className="mt-2 text-sm text-[#8d97a7]">أضف موظفاً بالإيميل وحدد الأقسام التي يمكنه رؤيتها وتعديلها — هتاخد لينك دعوة تبعتيه له بنفسك.</p></div><button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><UserPlus size={18} />إضافة موظف</button></div>
               <section className="rounded-2xl border border-[#e8ebf0] bg-white">
                 <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-right text-sm"><thead><tr className="border-b border-[#eef0f3] text-xs text-[#9ba4b2]"><th className="px-5 py-4">الإيميل</th><th className="px-5 py-4">الأقسام المتاحة</th><th className="px-5 py-4">إجراء</th></tr></thead><tbody>{staff.filter(m => !m.is_admin).map(member => <tr key={member.id} className="border-b border-[#f1f3f5] last:border-0"><td className="px-5 py-4 font-semibold">{member.email}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">{accessSummary(member).length ? accessSummary(member).map(label => <span key={label} className="rounded-full bg-[#fff0ed] px-2.5 py-1 text-[11px] font-medium text-[#d8573a]">{label}</span>) : <span className="text-xs text-[#9ba4b2]">لا يوجد وصول بعد</span>}</div></td><td className="px-5 py-4"><button onClick={() => openEdit(member)} className="rounded-lg border border-[#e8ebf0] px-3 py-2 text-xs font-semibold text-[#d8573a]">تعديل الصلاحيات</button></td></tr>)}</tbody></table>{!loading && staff.filter(m => !m.is_admin).length === 0 && <p className="p-8 text-center text-sm text-[#9ba4b2]">لا يوجد موظفين مضافين بعد.</p>}</div>
               </section>
@@ -110,13 +119,29 @@ export default function StaffPage() {
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1a2540]/30 p-3 sm:p-6">
           <section className="my-3 w-full max-w-2xl rounded-2xl bg-white shadow-2xl sm:my-8">
-            <div className="flex items-center justify-between border-b border-[#eef0f3] p-5"><div><h2 className="text-xl font-bold">{editing ? 'تعديل صلاحيات الموظف' : 'إضافة موظف جديد'}</h2><p className="mt-1 text-xs text-[#9ba4b2]">حدد الوصول لكل قسم على حدة</p></div><button onClick={() => setFormOpen(false)} aria-label="إغلاق"><X /></button></div>
-            <form onSubmit={submit} className="flex flex-col gap-4 p-5">
-              <label><span className="mb-2 block text-xs font-semibold text-[#69758a]">إيميل الموظف</span><input required type="email" disabled={Boolean(editing)} value={email} onChange={e => setEmail(e.target.value)} placeholder="name@abhar.sa" className="w-full rounded-xl border border-[#e8ebf0] px-3 py-3 text-sm outline-none focus:border-[#d8573a] disabled:bg-[#f7f8fa]" /></label>
-              <div className="overflow-hidden rounded-xl border border-[#e8ebf0]"><table className="w-full text-right text-sm"><thead><tr className="border-b border-[#eef0f3] bg-[#f7f8fa] text-xs text-[#9ba4b2]"><th className="px-4 py-3">القسم</th><th className="px-4 py-3">مشاهدة</th><th className="px-4 py-3">تعديل</th></tr></thead><tbody>{modules.map(m => <tr key={m.key} className="border-b border-[#f1f3f5] last:border-0"><td className="px-4 py-3 font-medium">{m.label}</td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.view ?? false} onChange={() => togglePerm(m.key, 'view')} className="size-4 accent-[#d8573a]" /></td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.edit ?? false} onChange={() => togglePerm(m.key, 'edit')} className="size-4 accent-[#d8573a]" /></td></tr>)}</tbody></table></div>
-              {error && <p className="rounded-lg bg-[#fce8e6] px-3 py-2 text-xs text-[#c84c3b]">{error}</p>}
-              <div className="flex justify-end gap-3 border-t border-[#eef0f3] pt-4"><button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8ebf0] px-5 py-3 text-sm font-semibold">إلغاء</button><button disabled={saving} type="submit" className="rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button></div>
-            </form>
+            {inviteLink ? (
+              <>
+                <div className="flex items-center justify-between border-b border-[#eef0f3] p-5"><div><h2 className="text-xl font-bold">اتضاف الموظف بنجاح</h2><p className="mt-1 text-xs text-[#9ba4b2]">انسخي اللينك وابعتيه للموظف بأي طريقة (واتساب، إيميل...)</p></div><button onClick={() => { setFormOpen(false); setInviteLink('') }} aria-label="إغلاق"><X /></button></div>
+                <div className="flex flex-col gap-4 p-5">
+                  <div className="rounded-xl border border-[#e8ebf0] bg-[#f7f8fa] p-4 text-xs text-[#69758a] break-all">{inviteLink}</div>
+                  <p className="rounded-lg bg-[#fff8f6] px-3 py-2 text-xs text-[#b26b16]">اللينك ده لمرة واحدة بس ومحدود المدة — لو خلص، احذفي الموظف وضيفيه تاني عشان تطلعلك لينك جديد.</p>
+                  <div className="flex justify-end gap-3 border-t border-[#eef0f3] pt-4">
+                    <button onClick={copyLink} className="flex items-center gap-2 rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white">{copied ? <><Check size={16} />اتنسخ</> : <><Copy size={16} />نسخ اللينك</>}</button>
+                    <button onClick={() => { setFormOpen(false); setInviteLink('') }} className="rounded-xl border border-[#e8ebf0] px-5 py-3 text-sm font-semibold">تم</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between border-b border-[#eef0f3] p-5"><div><h2 className="text-xl font-bold">{editing ? 'تعديل صلاحيات الموظف' : 'إضافة موظف جديد'}</h2><p className="mt-1 text-xs text-[#9ba4b2]">حدد الوصول لكل قسم على حدة</p></div><button onClick={() => setFormOpen(false)} aria-label="إغلاق"><X /></button></div>
+                <form onSubmit={submit} className="flex flex-col gap-4 p-5">
+                  <label><span className="mb-2 block text-xs font-semibold text-[#69758a]">إيميل الموظف</span><input required type="email" disabled={Boolean(editing)} value={email} onChange={e => setEmail(e.target.value)} placeholder="name@abhar.sa" className="w-full rounded-xl border border-[#e8ebf0] px-3 py-3 text-sm outline-none focus:border-[#d8573a] disabled:bg-[#f7f8fa]" /></label>
+                  <div className="overflow-hidden rounded-xl border border-[#e8ebf0]"><table className="w-full text-right text-sm"><thead><tr className="border-b border-[#eef0f3] bg-[#f7f8fa] text-xs text-[#9ba4b2]"><th className="px-4 py-3">القسم</th><th className="px-4 py-3">مشاهدة</th><th className="px-4 py-3">تعديل</th></tr></thead><tbody>{modules.map(m => <tr key={m.key} className="border-b border-[#f1f3f5] last:border-0"><td className="px-4 py-3 font-medium">{m.label}</td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.view ?? false} onChange={() => togglePerm(m.key, 'view')} className="size-4 accent-[#d8573a]" /></td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.edit ?? false} onChange={() => togglePerm(m.key, 'edit')} className="size-4 accent-[#d8573a]" /></td></tr>)}</tbody></table></div>
+                  {error && <p className="rounded-lg bg-[#fce8e6] px-3 py-2 text-xs text-[#c84c3b]">{error}</p>}
+                  <div className="flex justify-end gap-3 border-t border-[#eef0f3] pt-4"><button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8ebf0] px-5 py-3 text-sm font-semibold">إلغاء</button><button disabled={saving} type="submit" className="rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button></div>
+                </form>
+              </>
+            )}
           </section>
         </div>
       )}
