@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  // إعادة إرسال لينك الدعوة (لو انتهت صلاحية اللينك القديم)
+  // إعادة إرسال لينك تعيين كلمة مرور لموظف موجود (recovery link)
   const check = await requireAdmin()
   if (check.error) return check.error
 
@@ -81,7 +81,7 @@ export async function PUT(request: Request) {
 
   const admin = createAdminClient()
   const redirectTo = `${new URL(request.url).origin}/auth/callback`
-  const { data: linkData, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } })
+  const { data: linkData, error } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })
   if (error || !linkData) return NextResponse.json({ error: error?.message ?? 'فشلت العملية' }, { status: 400 })
 
   return NextResponse.json({ success: true, inviteLink: linkData.properties.action_link })

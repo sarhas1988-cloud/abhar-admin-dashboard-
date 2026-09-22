@@ -159,6 +159,10 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: Arial, "Noto Sans Arabic", sans-serif;
+    font-family: 'Cairo', "Noto Sans Arabic", sans-serif;
+  }
+  .font-serif {
+    font-family: 'Amiri', "Noto Serif", Georgia, serif;
+    font-feature-settings: "kern";
   }
 }

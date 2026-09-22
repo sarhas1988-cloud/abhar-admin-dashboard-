@@ -34,11 +34,11 @@ export default function BookProfilePage() {
     })()
   }, [params.id])
 
-  if (loading) return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f8fa] text-[#1a2540]"><p className="text-sm text-[#9ba4b2]">جارٍ التحميل...</p></main>
+  if (loading) return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#faf6f0] text-[#2a211c]"><p className="text-sm text-[#a3907e]">جارٍ التحميل...</p></main>
 
   if (!book) {
     return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f8fa] p-6 text-center text-[#1a2540]">
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#faf6f0] p-6 text-center text-[#2a211c]">
         <div><p className="text-lg font-bold">لم يتم العثور على هذا الكتاب</p><Link href="/contracts" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#d8573a]"><ArrowRight size={16} />العودة إلى التعاقدات</Link></div>
       </main>
     )
@@ -52,33 +52,33 @@ export default function BookProfilePage() {
   ]
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f7f8fa] p-5 text-[#1a2540] sm:p-8">
+    <main dir="rtl" className="min-h-screen bg-[#faf6f0] p-5 text-[#2a211c] sm:p-8">
       <div className="mx-auto max-w-[1000px]">
-        <Link href="/contracts" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#69758a] hover:text-[#d8573a]"><ArrowRight size={16} />العودة إلى التعاقدات</Link>
-        <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#e8ebf0] bg-white p-6 sm:flex-row sm:items-center">
+        <Link href="/contracts" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#6b5d53] hover:text-[#d8573a]"><ArrowRight size={16} />العودة إلى التعاقدات</Link>
+        <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#e8dfd3] bg-white p-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
-            <div className="flex size-14 items-center justify-center rounded-xl bg-[#fff0ed]">{book.cover_image_url ? <img src={book.cover_image_url} alt={book.title} className="size-14 rounded-xl object-cover" /> : <BookOpen size={24} className="text-[#d8573a]" />}</div>
-            <div><p className="text-xs text-[#9ba4b2]">{book.permit}</p><h1 className="text-xl font-bold sm:text-2xl">{book.title}</h1><p className="mt-1 text-sm text-[#69758a]">{book.book_authors?.map((a: any) => a.authors.name).join('، ')} — {book.category}</p></div>
+            <div className="flex size-14 items-center justify-center rounded-xl bg-[#faf1eb]">{book.cover_image_url ? <img src={book.cover_image_url} alt={book.title} className="size-14 rounded-xl object-cover" /> : <BookOpen size={24} className="text-[#d8573a]" />}</div>
+            <div><p className="text-xs text-[#a3907e]">{book.permit}</p><h1 className="font-serif text-xl font-semibold sm:text-2xl">{book.title}</h1><p className="mt-1 text-sm text-[#6b5d53]">{book.book_authors?.map((a: any) => a.authors.name).join('، ')} — {book.category}</p></div>
           </div>
-          <div className="text-sm"><p className="text-xs text-[#9ba4b2]">السعر</p><p className="font-semibold">{book.price_egp} ج.م / {book.price_aed} د.إ / {book.price_sar} ر.س</p></div>
+          <div className="text-sm"><p className="text-xs text-[#a3907e]">السعر</p><p className="font-semibold">{book.price_egp} ج.م / {book.price_aed} د.إ / {book.price_sar} ر.س</p></div>
         </div>
 
-        <section className="mb-6 rounded-2xl border border-[#e8ebf0] bg-white p-6">
+        <section className="mb-6 rounded-2xl border border-[#e8dfd3] bg-white p-6">
           <h3 className="mb-5 font-bold">مسار الكتاب</h3>
           <div className="flex flex-col gap-0 sm:flex-row sm:items-start sm:gap-4">
             {stages.map((stage, i) => (
               <div key={stage.key} className="flex flex-1 items-start gap-3 sm:flex-col sm:items-center sm:text-center">
-                <div className="flex flex-col items-center sm:w-full"><div className="flex items-center gap-2 sm:w-full sm:flex-row-reverse">{stage.done ? <CheckCircle2 size={22} className="shrink-0 text-[#25824a]" /> : <Circle size={22} className="shrink-0 text-[#cfd5de]" />}{i < stages.length - 1 && <div className="hidden h-[2px] flex-1 bg-[#eef0f3] sm:block" />}</div></div>
-                <div className="pb-4 sm:pb-0"><p className={`text-sm font-semibold ${stage.done ? 'text-[#1a2540]' : 'text-[#9ba4b2]'}`}>{stage.label}</p><p className="mt-1 text-xs text-[#9ba4b2]">{stage.note}</p></div>
+                <div className="flex flex-col items-center sm:w-full"><div className="flex items-center gap-2 sm:w-full sm:flex-row-reverse">{stage.done ? <CheckCircle2 size={22} className="shrink-0 text-[#4a7a2c]" /> : <Circle size={22} className="shrink-0 text-[#cfbfa8]" />}{i < stages.length - 1 && <div className="hidden h-[2px] flex-1 bg-[#ede4d7] sm:block" />}</div></div>
+                <div className="pb-4 sm:pb-0"><p className={`text-sm font-semibold ${stage.done ? 'text-[#2a211c]' : 'text-[#a3907e]'}`}>{stage.label}</p><p className="mt-1 text-xs text-[#a3907e]">{stage.note}</p></div>
               </div>
             ))}
           </div>
         </section>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-[#e8ebf0] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Factory size={18} /><span className="text-xs font-semibold text-[#69758a]">المطبعة</span></div><p className="text-sm">{printing?.received_at ? `استُلمت في ${printing.received_at}` : 'لم تُستلم بعد'}</p><p className="mt-1 text-xs text-[#9ba4b2]">تسليم الكاتب: {printing?.delivered_to_author ? 'تم' : 'لم يتم'}</p></div>
-          <div className="rounded-2xl border border-[#e8ebf0] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Warehouse size={18} /><span className="text-xs font-semibold text-[#69758a]">المخزن</span></div><p className="text-sm">{warehouseTotal.toLocaleString('ar-EG')} نسخة</p><p className="mt-1 text-xs text-[#9ba4b2]">آخر استلام: {lastReceived || '—'}</p></div>
-          <div className="rounded-2xl border border-[#e8ebf0] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><ShoppingCart size={18} /><span className="text-xs font-semibold text-[#69758a]">الاوردرات</span></div><p className="text-sm">{orders.length} أوردر</p><p className="mt-1 text-xs text-[#9ba4b2]">{orders.filter(o => o.delivered).length} تم تسليمه</p></div>
+          <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Factory size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المطبعة</span></div><p className="text-sm">{printing?.received_at ? `استُلمت في ${printing.received_at}` : 'لم تُستلم بعد'}</p><p className="mt-1 text-xs text-[#a3907e]">تسليم الكاتب: {printing?.delivered_to_author ? 'تم' : 'لم يتم'}</p></div>
+          <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Warehouse size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المخزن</span></div><p className="text-sm">{warehouseTotal.toLocaleString('ar-EG')} نسخة</p><p className="mt-1 text-xs text-[#a3907e]">آخر استلام: {lastReceived || '—'}</p></div>
+          <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><ShoppingCart size={18} /><span className="text-xs font-semibold text-[#6b5d53]">الاوردرات</span></div><p className="text-sm">{orders.length} أوردر</p><p className="mt-1 text-xs text-[#a3907e]">{orders.filter(o => o.delivered).length} تم تسليمه</p></div>
         </div>
       </div>
     </main>
