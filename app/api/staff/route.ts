@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   if (!email) return NextResponse.json({ error: 'الإيميل مطلوب' }, { status: 400 })
 
   const admin = createAdminClient()
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email)
+  const redirectTo = `${new URL(request.url).origin}/auth/callback`
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo })
   if (inviteError || !invited?.user) return NextResponse.json({ error: inviteError?.message ?? 'فشلت الدعوة' }, { status: 400 })
 
   const newUserId = invited.user.id
