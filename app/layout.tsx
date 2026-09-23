@@ -3,12 +3,12 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'إبهار للنشر والتوزيع | لوحة التحكم',
-  description: 'إدارة الكتب والمبيعات والمخزون في إبهار للنشر والتوزيع',
+  title: 'إبهار للتوزيع والنشر | لوحة التحكم',
+  description: 'إدارة الكتب والمبيعات والمخزون في إبهار للتوزيع والنشر',
   generator: 'v0.app',
   icons: {
-    icon: '/abhar-logo.svg',
-    apple: '/abhar-logo.svg',
+    icon: '/abhar-logo.png',
+    apple: '/abhar-logo.png',
   },
 }
 

@@ -53,7 +53,7 @@ export default function SetPasswordPage() {
       <div className="w-full max-w-md rounded-2xl border border-[#e8dfd3] bg-white p-8 shadow-[0_4px_24px_-8px_rgba(90,60,40,0.12)]">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="flex size-16 items-center justify-center rounded-2xl bg-[#faf1eb] p-2">
-            <img src="/abhar-logo.svg" alt="إبهار للنشر والتوزيع" className="h-full w-full object-contain" />
+            <img src="/abhar-logo.png" alt="إبهار للتوزيع والنشر" className="h-full w-full object-contain" />
           </div>
           <h1 className="mt-4 font-serif text-2xl font-semibold">تفعيل الحساب</h1>
           <p className="mt-1 text-xs text-[#8a7969]">حطي كلمة مرور لحسابك عشان تقدري تدخلي</p>

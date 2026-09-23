@@ -32,11 +32,11 @@ export function SharedLayout({ title, subtitle, children }: Props) {
         <div className="flex items-center justify-between pb-8">
           <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#faf1eb] p-1.5">
-              <img src="/abhar-logo.svg" alt="إبهار" className="h-full w-full object-contain" />
+              <img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain" />
             </div>
             <div className="min-w-0">
               <p className="font-serif text-base font-semibold leading-tight text-[#2a211c]">إبهار</p>
-              <p className="text-[10px] leading-tight text-[#a3907e]">للنشر والتوزيع</p>
+              <p className="text-[10px] leading-tight text-[#a3907e]">للتوزيع والنشر</p>
             </div>
           </div>
           <button onClick={() => setMenuOpen(false)} className="rounded-lg p-2 text-[#8a7969] hover:bg-[#faf1eb] lg:hidden" aria-label="إغلاق القائمة"><X size={18} /></button>

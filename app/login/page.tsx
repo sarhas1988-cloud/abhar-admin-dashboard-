@@ -37,11 +37,11 @@ export default function LoginPage() {
 
           <div className="relative z-10 flex items-center gap-3">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-white/10 p-2 backdrop-blur">
-              <img src="/abhar-logo.svg" alt="إبهار" className="h-full w-full object-contain brightness-0 invert" />
+              <img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain brightness-0 invert" />
             </div>
             <div>
               <p className="font-serif text-lg font-semibold">إبهار</p>
-              <p className="text-xs text-white/60">للنشر والتوزيع</p>
+              <p className="text-xs text-white/60">للتوزيع والنشر</p>
             </div>
           </div>
 
@@ -65,7 +65,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} إبهار للنشر والتوزيع</p>
+          <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} إبهار للتوزيع والنشر</p>
         </aside>
 
         {/* الجانب الأيمن: الفورم */}
@@ -74,7 +74,7 @@ export default function LoginPage() {
             {/* اللوجو للموبايل فقط */}
             <div className="mb-8 flex items-center justify-center lg:hidden">
               <div className="flex size-14 items-center justify-center rounded-2xl bg-[#faf1eb] p-2">
-                <img src="/abhar-logo.svg" alt="إبهار للنشر والتوزيع" className="h-full w-full object-contain" />
+                <img src="/abhar-logo.png" alt="إبهار للتوزيع والنشر" className="h-full w-full object-contain" />
               </div>
             </div>
 
