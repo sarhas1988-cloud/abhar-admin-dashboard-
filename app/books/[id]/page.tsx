@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, CheckCircle2, Circle, Factory, ShoppingCart, Warehouse } from 'lucide-react'
+import { ArrowRight, BookOpen, CheckCircle2, Circle, Download, Factory, QrCode, ShoppingCart, Warehouse } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import QRCode from 'qrcode'
 
 export default function BookProfilePage() {
   const params = useParams<{ id: string }>()
@@ -13,6 +14,7 @@ export default function BookProfilePage() {
   const [warehouseTotal, setWarehouseTotal] = useState(0)
   const [lastReceived, setLastReceived] = useState('')
   const [orders, setOrders] = useState<any[]>([])
+  const [qrUrl, setQrUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -30,6 +32,12 @@ export default function BookProfilePage() {
       setWarehouseTotal((w ?? []).reduce((sum, r) => sum + r.quantity, 0))
       setLastReceived(w?.[0]?.received_at ?? '')
       setOrders(o ?? [])
+      // Generate QR with book info
+      if (b) {
+        const qrText = `Book: ${b.title}\nISBN: ${b.isbn || 'N/A'}\nID: ${params.id}`
+        const url = await QRCode.toDataURL(qrText, { width: 200, margin: 1, color: { dark: '#2a211c', light: '#ffffff' } })
+        setQrUrl(url)
+      }
       setLoading(false)
     })()
   }, [params.id])
@@ -80,6 +88,17 @@ export default function BookProfilePage() {
           <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Warehouse size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المخزن</span></div><p className="text-sm">{warehouseTotal.toLocaleString('en-US')} نسخة</p><p className="mt-1 text-xs text-[#a3907e]">آخر استلام: {lastReceived || '—'}</p></div>
           <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><ShoppingCart size={18} /><span className="text-xs font-semibold text-[#6b5d53]">الاوردرات</span></div><p className="text-sm">{orders.length} أوردر</p><p className="mt-1 text-xs text-[#a3907e]">{orders.filter(o => o.delivered).length} تم تسليمه</p></div>
         </div>
+
+        {/* QR Code */}
+        {qrUrl && (
+          <section className="mt-6 rounded-2xl border border-[#e8dfd3] bg-white p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-[#faf1eb] text-[#d8573a]"><QrCode size={18} /></div><div><h3 className="font-semibold text-[#2a211c]">QR Code</h3><p className="text-xs text-[#a3907e]">امسحه بالكاميرا لعرض بيانات الكتاب</p></div></div>
+              <a href={qrUrl} download={`QR-${book?.title || 'book'}.png`} className="flex items-center gap-1.5 rounded-xl bg-[#faf1eb] px-4 py-2 text-xs font-semibold text-[#d8573a] transition hover:bg-[#f2b590]/30"><Download size={14} />تحميل</a>
+            </div>
+            <div className="mt-4 flex justify-center"><img src={qrUrl} alt="QR Code" className="size-40 rounded-xl border border-[#ede4d7] bg-white p-2" /></div>
+          </section>
+        )}
       </div>
     </main>
   )
