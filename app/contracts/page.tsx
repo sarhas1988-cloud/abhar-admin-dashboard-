@@ -2,36 +2,27 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ArrowDownUp, Bell, ChevronDown, ClipboardList, ExternalLink, Factory, Filter, Grid2X2, LayoutDashboard, LogOut, Menu, Plus, Search, Settings, ShieldCheck, ShoppingCart, Upload, Warehouse, X } from 'lucide-react'
+import { ArrowDownUp, BookOpen, ExternalLink, Pencil, Plus, Search, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { SharedLayout } from '@/components/SharedLayout'
 
 const categories = ['رواية', 'شعر', 'تطوير ذات', 'أدب', 'أطفال', 'ديني', 'أخرى']
-const emptyForm = { permit: '', isbn: '', title: '', authors: [] as string[], category: '', copies: '', freeCopies: '', size: '', paper: '', ink: '', summary: '', profit: '', phone: '', egp: '', aed: '', sar: '', date: '', parentBookId: '' }
+const paperTypes = ['أبيض', 'بلك', 'art']
+const coverTypes = ['سوفت', 'هارد']
+const emptyForm = { permit: '', isbn: '', title: '', authors: [] as string[], category: '', copies: '', freeCopies: '', size: '', paper: '', ink: '', summary: '', profit: '', phone: '', egp: '', aed: '', sar: '', usd: '', date: '', season: '', translator: '', coverType: '', coverNotes: '', parentBookId: '' }
 
 type Book = {
   id: string; title: string; category: string; printed_copies: number; free_copies: number
   size: string; paper_type: string; print_color: string; brief: string; profit_percent: number
-  author_phone: string; price_egp: number; price_aed: number; price_sar: number; contract_date: string
+  author_phone: string; price_egp: number; price_aed: number; price_sar: number; price_usd: number
+  contract_date: string; season: string; translator: string; cover_type: string; cover_notes: string
   contract_pdf_url: string | null; cover_image_url: string | null; parent_book_id: string | null; permit: string; isbn: string
   book_authors: { authors: { id: string; name: string } }[]
 }
 
 export default function ContractsPage() {
-  const pathname = usePathname()
-  const { loading: accessLoading, isAdmin, canView, canEdit, signOut } = useStaffAccess()
-  const navItems = useMemo(() => [
-    { label: 'نظرة عامة', href: '/', icon: LayoutDashboard, show: true },
-    { label: 'التعاقدات والقسم الفني', href: '/contracts', icon: ClipboardList, show: canView('contracts') },
-    { label: 'المطبعة', href: '/printing', icon: Factory, show: canView('printing') },
-    { label: 'المنصات', href: '/platforms', icon: Grid2X2, show: canView('platforms') },
-    { label: 'المخزن', href: '/warehouse', icon: Warehouse, show: canView('warehouse') },
-    { label: 'الاوردرات', href: '/orders', icon: ShoppingCart, show: canView('orders') },
-    { label: 'الموظفين والصلاحيات', href: '/staff', icon: ShieldCheck, show: isAdmin },
-  ].filter(item => item.show), [isAdmin, accessLoading])
-
-  const [menuOpen, setMenuOpen] = useState(false)
+  const { loading: accessLoading, canView, canEdit } = useStaffAccess()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('الكل')
   const [sortAsc, setSortAsc] = useState(true)
@@ -40,23 +31,19 @@ export default function ContractsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [detail, setDetail] = useState<Book | null>(null)
+  const [editingBook, setEditingBook] = useState<Book | null>(null)
   const [newEdition, setNewEdition] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
-
   const supabase = createClient()
 
   const loadBooks = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('books')
-      .select('*, book_authors(authors(id, name))')
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('books').select('*, book_authors(authors(id, name))').order('created_at', { ascending: false })
     setBooks((data as any) ?? [])
     setLoading(false)
   }
-
   useEffect(() => { loadBooks() }, [])
 
   const filteredBooks = useMemo(() => books.filter(book => {
@@ -64,15 +51,30 @@ export default function ContractsPage() {
     return `${book.title} ${authorNames}`.includes(query) && (category === 'الكل' || book.category === category)
   }).sort((a, b) => sortAsc ? a.title.localeCompare(b.title, 'ar') : b.title.localeCompare(a.title, 'ar')), [books, query, category, sortAsc])
 
-  const setField = (key: string, value: string) => setForm(current => ({ ...current, [key]: value }))
+  const setField = (key: string, value: any) => setForm(current => ({ ...current, [key]: value }))
+
+  const openCreate = () => { setEditingBook(null); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(true) }
+  const openEdit = (book: Book) => {
+    setEditingBook(book)
+    setForm({
+      permit: book.permit || '', isbn: book.isbn || '', title: book.title, authors: book.book_authors?.map(a => a.authors.name) || [],
+      category: book.category || '', copies: String(book.printed_copies || ''), freeCopies: String(book.free_copies || ''),
+      size: book.size || '', paper: book.paper_type || '', ink: book.print_color || '', summary: book.brief || '',
+      profit: String(book.profit_percent || ''), phone: book.author_phone || '',
+      egp: String(book.price_egp || ''), aed: String(book.price_aed || ''), sar: String(book.price_sar || ''), usd: String(book.price_usd || ''),
+      date: book.contract_date || '', season: book.season || '', translator: book.translator || '',
+      coverType: book.cover_type || '', coverNotes: book.cover_notes || '', parentBookId: book.parent_book_id || '',
+    })
+    setCoverFile(null); setContractFile(null); setNewEdition(Boolean(book.parent_book_id)); setFormOpen(true)
+  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!form.title || Number(form.freeCopies) > Number(form.copies)) return
+    if (!form.title) return
     setSaving(true)
 
-    let coverUrl: string | null = null
-    let contractUrl: string | null = null
+    let coverUrl: string | null = editingBook?.cover_image_url ?? null
+    let contractUrl: string | null = editingBook?.contract_pdf_url ?? null
     if (coverFile) {
       const path = `${Date.now()}-${coverFile.name}`
       const { data } = await supabase.storage.from('book-covers').upload(path, coverFile)
@@ -84,17 +86,29 @@ export default function ContractsPage() {
       if (data) contractUrl = supabase.storage.from('contract-pdfs').getPublicUrl(data.path).data.publicUrl
     }
 
-    const { data: bookRow, error: bookError } = await supabase.from('books').insert({
+    const payload = {
       permit: form.permit, isbn: form.isbn, title: form.title, category: form.category,
       printed_copies: Number(form.copies) || 0, free_copies: Number(form.freeCopies) || 0,
       size: form.size, paper_type: form.paper, print_color: form.ink, brief: form.summary,
       profit_percent: Number(form.profit) || 0, author_phone: form.phone,
-      price_egp: Number(form.egp) || 0, price_aed: Number(form.aed) || 0, price_sar: Number(form.sar) || 0,
-      contract_date: form.date || null, contract_pdf_url: contractUrl, cover_image_url: coverUrl,
+      price_egp: Number(form.egp) || 0, price_aed: Number(form.aed) || 0, price_sar: Number(form.sar) || 0, price_usd: Number(form.usd) || 0,
+      contract_date: form.date || null, season: form.season, translator: form.translator,
+      cover_type: form.coverType, cover_notes: form.coverNotes,
+      contract_pdf_url: contractUrl, cover_image_url: coverUrl,
       parent_book_id: newEdition && form.parentBookId ? form.parentBookId : null,
-    }).select().single()
+    }
 
-    if (bookError || !bookRow) { setSaving(false); return }
+    let bookId: string
+    if (editingBook) {
+      await supabase.from('books').update(payload).eq('id', editingBook.id)
+      bookId = editingBook.id
+      // update authors: remove old, re-add
+      await supabase.from('book_authors').delete().eq('book_id', bookId)
+    } else {
+      const { data: bookRow, error: bookError } = await supabase.from('books').insert(payload).select().single()
+      if (bookError || !bookRow) { setSaving(false); return }
+      bookId = bookRow.id
+    }
 
     for (const authorName of form.authors) {
       const { data: existing } = await supabase.from('authors').select('id').eq('name', authorName).maybeSingle()
@@ -103,145 +117,123 @@ export default function ContractsPage() {
         const { data: created } = await supabase.from('authors').insert({ name: authorName, phone: form.phone }).select().single()
         authorId = created?.id
       }
-      if (authorId) await supabase.from('book_authors').insert({ book_id: bookRow.id, author_id: authorId })
+      if (authorId) await supabase.from('book_authors').insert({ book_id: bookId, author_id: authorId })
     }
 
-    setSaving(false)
-    setForm(emptyForm)
-    setCoverFile(null)
-    setContractFile(null)
-    setNewEdition(false)
-    setFormOpen(false)
-    loadBooks()
+    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks()
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
-      <aside className={`fixed inset-y-0 right-0 z-40 flex w-[252px] flex-col border-l border-[#e8dfd3] bg-white px-5 py-6 transition-transform lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
-        <div className="flex items-center justify-between pb-8">
-          <div className="flex items-center gap-2.5">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#faf1eb] p-1.5"><img src="/abhar-logo.svg" alt="إبهار" className="h-full w-full object-contain" /></div>
-          <div className="min-w-0"><p className="font-serif text-base font-semibold leading-tight text-[#2a211c]">إبهار</p><p className="text-[10px] leading-tight text-[#a3907e]">للنشر والتوزيع</p></div>
-        </div>
-          <button onClick={() => setMenuOpen(false)} className="lg:hidden" aria-label="إغلاق القائمة"><X /></button>
-        </div>
-        <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.16em] text-[#a3907e]">القائمة الرئيسية</p>
-        <nav className="flex flex-col gap-1.5">
-          {navItems.map(({ label, href, icon: Icon }) => (
-            <Link key={href} href={href} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium ${pathname === href ? 'bg-[#faf1eb] text-[#d8573a]' : 'text-[#6b5d53] hover:bg-[#faf6f0]'}`}>
-              <Icon size={19} /><span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-[#ede4d7] pt-4">
-          <button onClick={signOut} className="flex items-center gap-3 px-3.5 py-3 text-sm text-[#6b5d53] hover:text-[#c04a2f]"><LogOut size={19} />تسجيل الخروج</button>
-        </div>
-      </aside>
-      {menuOpen && <button className="fixed inset-0 z-30 bg-[#2a211c]/20 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة" />}
-
-      <section className="lg:mr-[252px]">
-        <header className="flex h-[84px] items-center justify-between border-b border-[#e8dfd3] bg-white px-5 sm:px-8">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMenuOpen(true)} className="lg:hidden" aria-label="فتح القائمة"><Menu /></button>
-            <div><p className="text-xs text-[#8a7969]">القسم الفني والتعاقدات</p><h1 className="font-serif mt-1 text-xl font-semibold sm:text-2xl">التعاقدات والقسم الفني</h1></div>
+    <SharedLayout title="التعاقدات والقسم الفني" subtitle="إدارة الكتب والعقود">
+      {!accessLoading && !canView('contracts') ? (
+        <p className="rounded-2xl border border-[#e8dfd3] bg-white p-8 text-center text-sm text-[#a3907e]">مفيش صلاحية وصول لهذا القسم.</p>
+      ) : (
+        <>
+          <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="mb-1 text-[11px] font-medium tracking-[0.18em] text-[#d8573a]">القسم الفني</p>
+              <h2 className="font-serif text-3xl font-semibold sm:text-4xl">كل الكتب</h2>
+              <p className="mt-2 text-sm text-[#8a7969]">سجل الكتب المتعاقد عليها وتفاصيل القسم الفني — دوس على أي كتاب لعرض التفاصيل أو تعديلها.</p>
+            </div>
+            {canEdit('contracts') && <button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] transition hover:bg-[#c04a2f]"><Plus size={16} />إضافة كتاب جديد</button>}
           </div>
-          <Bell size={19} className="text-[#6b5d53]" />
-        </header>
 
-        <div className="mx-auto max-w-[1400px] p-5 pb-24 sm:p-8 lg:pb-8">
-          {!accessLoading && !canView('contracts') ? (
-            <p className="rounded-xl border border-[#e8dfd3] bg-white p-6 text-center text-sm text-[#a3907e]">مفيش صلاحية وصول لهذا القسم.</p>
-          ) : (
-            <>
-              <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                <div>
-                  <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />إدارة الكتب والعقود</div>
-                  <h2 className="font-serif text-3xl font-semibold sm:text-4xl">كل الكتب</h2>
-                  <p className="mt-2 text-sm text-[#8a7969]">سجل الكتب المتعاقد عليها وتفاصيل القسم الفني.</p>
-                </div>
-                {canEdit('contracts') && <button onClick={() => setFormOpen(true)} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><Plus size={18} />إضافة كتاب جديد</button>}
-              </div>
-
-              <section className="rounded-2xl border border-[#e8dfd3] bg-white shadow-[0_1px_3px_-1px_rgba(90,60,40,0.06)]">
-                <div className="flex flex-col gap-3 border-b border-[#ede4d7] p-4 sm:flex-row sm:items-center">
-                  <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs text-[#a3907e]">
-                    <Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث باسم الكتاب أو الكاتب" className="w-full bg-transparent outline-none" />
-                  </label>
-                  <select value={category} onChange={e => setCategory(e.target.value)} className="rounded-lg border border-[#e8dfd3] bg-white px-3 py-2 text-xs"><option>الكل</option>{categories.map(item => <option key={item}>{item}</option>)}</select>
-                  <span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filteredBooks.length} كتب`}</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[850px] text-right text-sm">
-                    <thead><tr className="border-b border-[#ede4d7] text-xs text-[#a3907e]"><th className="px-5 py-4">اسم الكتاب</th><th className="px-5 py-4">اسم الكاتب</th><th className="px-5 py-4">تصنيف العمل</th><th className="px-5 py-4">عدد النسخ المطبوعة</th><th className="px-5 py-4">السعر بالجنية</th><th className="px-5 py-4">تاريخ التعاقد</th><th className="px-5 py-4"><button onClick={() => setSortAsc(v => !v)} className="flex items-center gap-1">ترتيب <ArrowDownUp size={14} /></button></th></tr></thead>
-                    <tbody>{filteredBooks.map(book => (
-                      <tr key={book.id} onClick={() => setDetail(book)} className="cursor-pointer border-b border-[#f0e7db] last:border-0 hover:bg-[#fcf9f4]">
-                        <td className="px-5 py-4 font-semibold">{book.title}</td>
-                        <td className="px-5 py-4 text-[#6b5d53]">{book.book_authors?.map(a => a.authors.name).join('، ')}</td>
-                        <td className="px-5 py-4 text-[#6b5d53]">{book.category}</td>
-                        <td className="px-5 py-4 text-[#6b5d53]">{book.printed_copies?.toLocaleString('ar-EG')}</td>
-                        <td className="px-5 py-4 text-[#6b5d53]">{book.price_egp?.toLocaleString('ar-EG')} ج.م</td>
-                        <td className="px-5 py-4 text-xs text-[#6b5d53]">{book.contract_date}</td>
-                        <td className="px-5 py-4"><button className="rounded-lg bg-[#faf1eb] px-3 py-1.5 text-xs font-semibold text-[#d8573a]">عرض</button></td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                  {!loading && filteredBooks.length === 0 && <p className="p-8 text-center text-sm text-[#a3907e]">لا توجد كتب مسجلة بعد.</p>}
-                </div>
-              </section>
-            </>
-          )}
-        </div>
-      </section>
-
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-1 overflow-x-auto border-t border-[#e8dfd3] bg-white px-2 py-2 lg:hidden">
-        {navItems.map(({ label, href, icon: Icon }) => (
-          <Link key={href} href={href} className={`flex min-w-[72px] flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[10px] ${pathname === href ? 'text-[#d8573a]' : 'text-[#8a7969]'}`}><Icon size={18} /><span className="truncate">{label}</span></Link>
-        ))}
-      </nav>
-
-      {formOpen && (
-        <BookForm form={form} setField={setField} newEdition={newEdition} setNewEdition={setNewEdition}
-          onCoverChange={setCoverFile} onContractChange={setContractFile} coverFile={coverFile}
-          onClose={() => setFormOpen(false)} onSubmit={submit} books={books} saving={saving} />
+          <section className="overflow-hidden rounded-3xl border border-[#e8dfd3] bg-white shadow-[0_2px_8px_-2px_rgba(90,60,40,0.06)]">
+            <div className="flex flex-col gap-3 border-b border-[#ede4d7] bg-[#fdf9f4] p-4 sm:flex-row sm:items-center">
+              <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs text-[#a3907e]">
+                <Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث باسم الكتاب أو الكاتب" className="w-full bg-transparent outline-none" />
+              </label>
+              <select value={category} onChange={e => setCategory(e.target.value)} className="rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs"><option>الكل</option>{categories.map(item => <option key={item}>{item}</option>)}</select>
+              <button onClick={() => setSortAsc(v => !v)} className="flex items-center gap-1.5 rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs text-[#6b5d53]"><ArrowDownUp size={13} />ترتيب</button>
+              <span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filteredBooks.length} كتاب`}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-right text-sm">
+                <thead><tr className="border-b border-[#ede4d7] bg-[#fdf9f4] text-[11px] font-medium text-[#a3907e]"><th className="px-5 py-3.5">الكتاب</th><th className="px-5 py-3.5">الكاتب</th><th className="px-5 py-3.5">التصنيف</th><th className="px-5 py-3.5">النسخ</th><th className="px-5 py-3.5">السعر (ج.م)</th><th className="px-5 py-3.5">تاريخ التعاقد</th><th className="px-5 py-3.5">إجراءات</th></tr></thead>
+                <tbody>{filteredBooks.map(book => (
+                  <tr key={book.id} className="border-b border-[#f0e7db] last:border-0 transition hover:bg-[#fdf9f4]">
+                    <td className="px-5 py-4"><div className="flex items-center gap-3">{book.cover_image_url ? <img src={book.cover_image_url} alt="" className="size-10 shrink-0 rounded-lg object-cover" /> : <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#faf1eb]"><BookOpen size={16} className="text-[#d8573a]" /></div>}<span className="font-semibold">{book.title}</span></div></td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.book_authors?.map(a => a.authors.name).join('، ') || <span className="text-[#c4b3a1]">—</span>}</td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.category || '—'}</td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.printed_copies?.toLocaleString('ar-EG')}</td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.price_egp?.toLocaleString('ar-EG')}</td>
+                    <td className="px-5 py-4 text-xs text-[#8a7969]">{book.contract_date || '—'}</td>
+                    <td className="px-5 py-4"><div className="flex gap-2"><button onClick={() => setDetail(book)} className="rounded-lg bg-[#faf1eb] px-3 py-1.5 text-xs font-semibold text-[#d8573a] transition hover:bg-[#f2b590]/30">عرض</button>{canEdit('contracts') && <button onClick={() => openEdit(book)} className="rounded-lg border border-[#e8dfd3] px-3 py-1.5 text-xs font-semibold text-[#6b5d53] transition hover:border-[#d8573a] hover:text-[#d8573a]"><Pencil size={12} /></button>}</div></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+              {!loading && filteredBooks.length === 0 && <p className="p-10 text-center text-sm text-[#a3907e]">لا توجد كتب مسجلة بعد.</p>}
+            </div>
+          </section>
+        </>
       )}
-      {detail && <BookDetail book={detail} onClose={() => setDetail(null)} />}
-    </main>
+
+      {formOpen && <BookFormModal form={form} setField={setField} newEdition={newEdition} setNewEdition={setNewEdition} onCoverChange={setCoverFile} onContractChange={setContractFile} coverFile={coverFile} contractFile={contractFile} onClose={() => { setFormOpen(false); setEditingBook(null) }} onSubmit={submit} books={books} saving={saving} editing={editingBook} />}
+      {detail && <BookDetail book={detail} onClose={() => setDetail(null)} onEdit={canEdit('contracts') ? () => { setDetail(null); openEdit(detail) } : undefined} />}
+    </SharedLayout>
   )
 }
 
-function BookForm({ form, setField, newEdition, setNewEdition, onCoverChange, onContractChange, coverFile, onClose, onSubmit, books, saving }: any) {
+function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChange, onContractChange, coverFile, contractFile, onClose, onSubmit, books, saving, editing }: any) {
   const [authorInput, setAuthorInput] = useState('')
-  const addAuthor = () => { if (authorInput && !form.authors.includes(authorInput)) { setField('authors', [...form.authors, authorInput]); setAuthorInput('') } }
+  const addAuthor = () => { if (authorInput.trim() && !form.authors.includes(authorInput.trim())) { setField('authors', [...form.authors, authorInput.trim()]); setAuthorInput('') } }
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/30 p-3 sm:p-6">
-      <section className="my-3 w-full max-w-5xl rounded-2xl bg-white shadow-2xl sm:my-8">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#ede4d7] bg-white p-5">
-          <div><h2 className="font-serif text-xl font-semibold">إضافة كتاب جديد</h2><p className="mt-1 text-xs text-[#a3907e]">بيانات التعاقد والقسم الفني</p></div>
-          <button onClick={onClose} aria-label="إغلاق"><X /></button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/50 p-3 backdrop-blur-sm sm:p-6">
+      <section className="my-3 w-full max-w-5xl rounded-3xl bg-white shadow-2xl sm:my-8">
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-3xl border-b border-[#ede4d7] bg-white p-6">
+          <div><h2 className="font-serif text-xl font-semibold">{editing ? 'تعديل الكتاب' : 'إضافة كتاب جديد'}</h2><p className="mt-1 text-xs text-[#a3907e]">بيانات التعاقد والقسم الفني</p></div>
+          <button onClick={onClose} className="rounded-xl p-2 text-[#8a7969] transition hover:bg-[#faf1eb]" aria-label="إغلاق"><X size={20} /></button>
         </div>
-        <form onSubmit={onSubmit} className="grid gap-4 p-5 sm:grid-cols-2">
-          {[['permit', 'اذن طباعة', 'text'], ['isbn', 'ترقيم دولي / ISBN', 'text'], ['title', 'اسم الكتاب', 'text'], ['copies', 'عدد النسخ المطبوعة', 'number'], ['freeCopies', 'عدد النسخ المجانية', 'number'], ['size', 'مقاس الكتاب', 'text'], ['profit', 'نسبة الارباح %', 'number'], ['phone', 'تليفون الكاتب', 'tel'], ['egp', 'السعر بالجنية', 'number'], ['aed', 'السعر بالدرهم', 'number'], ['sar', 'السعر بالريال', 'number'], ['date', 'تاريخ التعاقد او المعرض', 'date']].map(([id, label, type]) => (
-            <label key={id}><span className="mb-2 block text-xs font-semibold text-[#6b5d53]">{label}</span><input required={id === 'title'} value={form[id]} onChange={e => setField(id, e.target.value)} type={type} className="w-full rounded-xl border border-[#e8dfd3] px-3 py-3 text-sm outline-none focus:border-[#d8573a]" /></label>
-          ))}
-          <label>
-            <span className="mb-2 block text-xs font-semibold text-[#6b5d53]">اسم الكاتب — يمكن إضافة أكثر من كاتب</span>
-            <div className="flex gap-2"><input value={authorInput} onChange={e => setAuthorInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addAuthor())} placeholder="اكتب اسم الكاتب" className="min-w-0 flex-1 rounded-xl border border-[#e8dfd3] px-3 py-3 text-sm" /><button type="button" onClick={addAuthor} className="rounded-xl bg-[#faf1eb] px-3 text-xs font-semibold text-[#d8573a]">إضافة</button></div>
-            <div className="mt-2 flex flex-wrap gap-2">{form.authors.map((author: string) => <button type="button" key={author} onClick={() => setField('authors', form.authors.filter((item: string) => item !== author))} className="rounded-full bg-[#faf6f0] px-3 py-1 text-xs">{author} ×</button>)}</div>
-          </label>
-          <SelectField label="تصنيف العمل" value={form.category} onChange={(v: string) => setField('category', v)} options={categories} />
-          <SelectField label="نوع الورق" value={form.paper} onChange={(v: string) => setField('paper', v)} options={['أبيض', 'كريمي', 'صقيل', 'أخرى']} />
-          <SelectField label="لون الطباعة" value={form.ink} onChange={(v: string) => setField('ink', v)} options={['أبيض وأسود', 'ملون']} />
-          <label className="sm:col-span-2"><span className="mb-2 block text-xs font-semibold text-[#6b5d53]">النبذة</span><textarea value={form.summary} onChange={e => setField('summary', e.target.value)} rows={4} className="w-full rounded-xl border border-[#e8dfd3] px-3 py-3 text-sm" /></label>
-          <div className="sm:col-span-2 flex items-center justify-between rounded-xl bg-[#faf6f0] p-4">
-            <div><p className="text-sm font-semibold">هل هذه طبعة جديدة لكتاب موجود؟</p><p className="mt-1 text-xs text-[#a3907e]">اربط السجل بكتاب سابق</p></div>
+        <form onSubmit={onSubmit} className="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="اسم الكتاب" required><input required value={form.title} onChange={e => setField('title', e.target.value)} className="inp" /></Field>
+          <div>
+            <label className="label">اسم الكاتب (يمكن إضافة أكثر من كاتب)</label>
+            <div className="flex gap-2"><input value={authorInput} onChange={e => setAuthorInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addAuthor())} placeholder="اكتب واضغط إضافة" className="inp flex-1" /><button type="button" onClick={addAuthor} className="shrink-0 rounded-xl bg-[#faf1eb] px-3 text-xs font-semibold text-[#d8573a]">إضافة</button></div>
+            <div className="mt-2 flex flex-wrap gap-1.5">{form.authors.map((a: string) => <button type="button" key={a} onClick={() => setField('authors', form.authors.filter((x: string) => x !== a))} className="rounded-full bg-[#faf1eb] px-3 py-1 text-xs text-[#6b5d53] transition hover:bg-[#f7dbd3]">{a} ×</button>)}</div>
+          </div>
+          <Field label="اسم المترجم"><input value={form.translator} onChange={e => setField('translator', e.target.value)} className="inp" /></Field>
+          <Field label="اذن طباعة"><input value={form.permit} onChange={e => setField('permit', e.target.value)} className="inp" /></Field>
+          <Field label="ترقيم دولي / ISBN"><input value={form.isbn} onChange={e => setField('isbn', e.target.value)} className="inp" /></Field>
+          <Field label="تصنيف العمل"><select value={form.category} onChange={e => setField('category', e.target.value)} className="inp"><option value="">اختر</option>{categories.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="عدد النسخ المطبوعة"><input type="number" value={form.copies} onChange={e => setField('copies', e.target.value)} className="inp" /></Field>
+          <Field label="عدد النسخ المجانية"><input type="number" value={form.freeCopies} onChange={e => setField('freeCopies', e.target.value)} className="inp" /></Field>
+          <Field label="مقاس الكتاب"><input value={form.size} onChange={e => setField('size', e.target.value)} className="inp" /></Field>
+          <Field label="نوع الورق"><select value={form.paper} onChange={e => setField('paper', e.target.value)} className="inp"><option value="">اختر</option>{paperTypes.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="لون الطباعة"><select value={form.ink} onChange={e => setField('ink', e.target.value)} className="inp"><option value="">اختر</option><option>أبيض وأسود</option><option>ملون</option></select></Field>
+          <Field label="الغلاف"><select value={form.coverType} onChange={e => setField('coverType', e.target.value)} className="inp"><option value="">اختر</option>{coverTypes.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="ملاحظات الغلاف"><input value={form.coverNotes} onChange={e => setField('coverNotes', e.target.value)} className="inp" placeholder="اختياري" /></Field>
+          <Field label="نسبة الأرباح %"><input type="number" value={form.profit} onChange={e => setField('profit', e.target.value)} className="inp" /></Field>
+          <Field label="تليفون الكاتب"><input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)} className="inp" /></Field>
+          <Field label="السعر بالجنية"><input type="number" value={form.egp} onChange={e => setField('egp', e.target.value)} className="inp" /></Field>
+          <Field label="السعر بالدرهم"><input type="number" value={form.aed} onChange={e => setField('aed', e.target.value)} className="inp" /></Field>
+          <Field label="السعر بالريال"><input type="number" value={form.sar} onChange={e => setField('sar', e.target.value)} className="inp" /></Field>
+          <Field label="السعر بالدولار"><input type="number" value={form.usd} onChange={e => setField('usd', e.target.value)} className="inp" /></Field>
+          <Field label="تاريخ التعاقد"><input type="date" value={form.date} onChange={e => setField('date', e.target.value)} className="inp" /></Field>
+          <Field label="الموسم / المعرض"><input value={form.season} onChange={e => setField('season', e.target.value)} className="inp" placeholder="مثلاً: معرض الرياض 2026" /></Field>
+          <div className="sm:col-span-2 lg:col-span-3"><label className="label">النبذة</label><textarea value={form.summary} onChange={e => setField('summary', e.target.value)} rows={3} className="inp" /></div>
+
+          <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-between rounded-2xl bg-[#fdf9f4] p-4">
+            <div><p className="text-sm font-semibold">طبعة جديدة لكتاب موجود؟</p><p className="mt-0.5 text-xs text-[#a3907e]">اربط السجل بكتاب سابق</p></div>
             <button type="button" onClick={() => setNewEdition(!newEdition)} className={`relative h-6 w-11 rounded-full transition ${newEdition ? 'bg-[#d8573a]' : 'bg-[#cfbfa8]'}`}><span className={`absolute top-1 size-4 rounded-full bg-white transition ${newEdition ? 'right-1' : 'right-6'}`} /></button>
           </div>
-          {newEdition && <SelectField label="الكتاب الأصلي" value={form.parentBookId} onChange={(v: string) => setField('parentBookId', v)} options={books.map((b: any) => b.title)} valueMap={books.reduce((acc: any, b: any) => ({ ...acc, [b.title]: b.id }), {})} />}
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#d4c4b0] bg-[#faf6f0] p-5 text-center"><Upload size={19} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع ملف PDF للعقد</span><input type="file" accept="application/pdf" onChange={e => onContractChange(e.target.files?.[0] ?? null)} className="sr-only" /></label>
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#d4c4b0] bg-[#faf6f0] p-5 text-center"><Upload size={19} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع صورة الغلاف</span>{coverFile && <span className="mt-2 text-[11px] text-[#4a7a2c]">{coverFile.name}</span>}<input type="file" accept="image/*" onChange={e => onCoverChange(e.target.files?.[0] ?? null)} className="sr-only" /></label>
-          <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-5 sm:col-span-2">
-            <button type="button" onClick={onClose} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm">إلغاء</button>
-            <button disabled={saving} className="rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : 'حفظ الكتاب'}</button>
+          {newEdition && <Field label="الكتاب الأصلي"><select value={form.parentBookId} onChange={e => setField('parentBookId', e.target.value)} className="inp"><option value="">اختر</option>{books.map((b: any) => <option key={b.id} value={b.id}>{b.title}</option>)}</select></Field>}
+
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4c4b0] bg-[#fdf9f4] p-6 text-center transition hover:border-[#d8573a]">
+            <Upload size={20} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع ملف PDF للعقد</span>
+            {contractFile && <span className="mt-1 text-[11px] text-[#4a7a2c]">{contractFile.name}</span>}
+            {!contractFile && editing?.contract_pdf_url && <span className="mt-1 text-[11px] text-[#8a7969]">ملف موجود — ارفع جديد لاستبداله</span>}
+            <input type="file" accept="application/pdf" onChange={e => onContractChange(e.target.files?.[0] ?? null)} className="sr-only" />
+          </label>
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4c4b0] bg-[#fdf9f4] p-6 text-center transition hover:border-[#d8573a]">
+            <Upload size={20} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع صورة الغلاف</span>
+            {coverFile && <span className="mt-1 text-[11px] text-[#4a7a2c]">{coverFile.name}</span>}
+            {!coverFile && editing?.cover_image_url && <img src={editing.cover_image_url} alt="" className="mt-2 h-16 rounded-lg object-contain" />}
+            <input type="file" accept="image/*" onChange={e => onCoverChange(e.target.files?.[0] ?? null)} className="sr-only" />
+          </label>
+
+          <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-5 sm:col-span-2 lg:col-span-3">
+            <button type="button" onClick={onClose} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold text-[#6b5d53]">إلغاء</button>
+            <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : editing ? 'حفظ التعديل' : 'حفظ الكتاب'}</button>
           </div>
         </form>
       </section>
@@ -249,35 +241,41 @@ function BookForm({ form, setField, newEdition, setNewEdition, onCoverChange, on
   )
 }
 
-function SelectField({ label, value, onChange, options, valueMap }: any) {
-  return <label><span className="mb-2 block text-xs font-semibold text-[#6b5d53]">{label}</span><select value={valueMap ? Object.keys(valueMap).find(k => valueMap[k] === value) ?? '' : value} onChange={e => onChange(valueMap ? valueMap[e.target.value] : e.target.value)} className="w-full rounded-xl border border-[#e8dfd3] bg-white px-3 py-3 text-sm"><option value="">اختر</option>{options.map((option: string) => <option key={option}>{option}</option>)}</select></label>
-}
-
-function BookDetail({ book, onClose }: { book: Book; onClose: () => void }) {
+function BookDetail({ book, onClose, onEdit }: { book: Book; onClose: () => void; onEdit?: () => void }) {
   const rows: [string, string][] = [
     ['اذن طباعة', book.permit], ['ترقيم دولي', book.isbn], ['تصنيف العمل', book.category],
     ['عدد النسخ المطبوعة', String(book.printed_copies)], ['عدد النسخ المجانية', String(book.free_copies)],
     ['مقاس الكتاب', book.size], ['نوع الورق', book.paper_type], ['لون الطباعة', book.print_color],
-    ['نسبة الأرباح', `${book.profit_percent}%`], ['تليفون الكاتب', book.author_phone],
-    ['السعر', `${book.price_egp} ج.م / ${book.price_aed} د.إ / ${book.price_sar} ر.س`], ['تاريخ التعاقد', book.contract_date],
+    ['الغلاف', book.cover_type ? `${book.cover_type}${book.cover_notes ? ` — ${book.cover_notes}` : ''}` : '—'],
+    ['نسبة الأرباح', `${book.profit_percent}%`], ['تليفون الكاتب', book.author_phone], ['المترجم', book.translator || '—'],
+    ['السعر', `${book.price_egp} ج.م / ${book.price_aed} د.إ / ${book.price_sar} ر.س${book.price_usd ? ` / ${book.price_usd} $` : ''}`],
+    ['تاريخ التعاقد', book.contract_date || '—'], ['الموسم / المعرض', book.season || '—'],
     ['النبذة', book.brief],
   ]
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/30 p-3 sm:p-6">
-      <section className="my-3 w-full max-w-4xl rounded-2xl bg-white shadow-2xl sm:my-8">
-        <div className="flex items-center justify-between border-b border-[#ede4d7] p-5">
-          <div><p className="text-xs text-[#d8573a]">{book.book_authors?.map(a => a.authors.name).join('، ')}</p><h2 className="mt-1 text-xl font-bold">{book.title}</h2></div>
-          <div className="flex items-center gap-3">
-            <a href={`/books/${book.id}`} className="flex items-center gap-1.5 rounded-lg bg-[#faf1eb] px-3 py-2 text-xs font-semibold text-[#d8573a]"><ExternalLink size={14} />عرض الملف الكامل</a>
-            <button onClick={onClose} aria-label="إغلاق"><X /></button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/50 p-3 backdrop-blur-sm sm:p-6">
+      <section className="my-3 w-full max-w-4xl rounded-3xl bg-white shadow-2xl sm:my-8">
+        <div className="flex items-center justify-between border-b border-[#ede4d7] p-6">
+          <div className="flex items-center gap-4">
+            {book.cover_image_url ? <img src={book.cover_image_url} alt="" className="size-16 rounded-xl object-cover" /> : <div className="flex size-16 items-center justify-center rounded-xl bg-[#faf1eb]"><BookOpen size={22} className="text-[#d8573a]" /></div>}
+            <div><p className="text-xs text-[#d8573a]">{book.book_authors?.map(a => a.authors.name).join('، ') || '—'}</p><h2 className="font-serif text-xl font-semibold">{book.title}</h2></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href={`/books/${book.id}`} className="flex items-center gap-1.5 rounded-xl bg-[#faf1eb] px-3 py-2 text-xs font-semibold text-[#d8573a] transition hover:bg-[#f2b590]/30"><ExternalLink size={13} />الملف الكامل</Link>
+            {onEdit && <button onClick={onEdit} className="flex items-center gap-1.5 rounded-xl border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#6b5d53] transition hover:border-[#d8573a] hover:text-[#d8573a]"><Pencil size={13} />تعديل</button>}
+            <button onClick={onClose} className="rounded-xl p-2 text-[#8a7969] hover:bg-[#faf1eb]" aria-label="إغلاق"><X size={18} /></button>
           </div>
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2">
-          {rows.map(([label, value]) => <div key={label} className="rounded-xl bg-[#faf6f0] p-4"><p className="text-xs text-[#a3907e]">{label}</p><p className="mt-1 text-sm font-semibold">{value || '—'}</p></div>)}
-          {book.cover_image_url && <img src={book.cover_image_url} alt={`غلاف ${book.title}`} className="h-48 rounded-xl object-contain" />}
-          {book.contract_pdf_url && <a href={book.contract_pdf_url} target="_blank" className="flex items-center justify-center rounded-xl border border-[#e8dfd3] p-4 text-sm font-semibold text-[#d8573a]">فتح ملف العقد PDF</a>}
+        <div className="grid gap-3 p-6 sm:grid-cols-2">
+          {rows.map(([label, value]) => <div key={label} className="rounded-2xl bg-[#fdf9f4] p-4"><p className="text-[11px] text-[#a3907e]">{label}</p><p className="mt-1 text-sm font-semibold text-[#2a211c]">{value || '—'}</p></div>)}
+          {book.cover_image_url && <div className="flex items-center justify-center rounded-2xl bg-[#fdf9f4] p-4"><img src={book.cover_image_url} alt={`غلاف ${book.title}`} className="h-48 rounded-xl object-contain" /></div>}
+          {book.contract_pdf_url && <a href={book.contract_pdf_url} target="_blank" className="flex items-center justify-center rounded-2xl border border-[#e8dfd3] p-4 text-sm font-semibold text-[#d8573a] transition hover:bg-[#faf1eb]">فتح ملف العقد PDF</a>}
         </div>
       </section>
     </div>
   )
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return <div><label className="label">{label}{required && <span className="text-[#d8573a]"> *</span>}</label>{children}</div>
 }

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Bell, ClipboardList, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { SharedLayout } from '@/components/SharedLayout'
 
 type Book = { id: string; title: string; book_authors: { authors: { name: string } }[] }
 type Batch = { id: string; book_id: string; received_at: string; quantity: number }

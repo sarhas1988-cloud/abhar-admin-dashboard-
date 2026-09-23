@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Bell, CalendarDays, ClipboardList, Factory, Filter, Grid2X2, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { SharedLayout } from '@/components/SharedLayout'
 
 type Book = { id: string; title: string; printed_copies: number; book_authors: { authors: { name: string } }[] }
 type Job = { id: string; book_id: string; copies: number; printer_price: number; entered_at: string; received_at: string; delivered_to_author: boolean; books: Book }

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Ban, Bell, Check, ClipboardList, Copy, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, RotateCcw, SendHorizontal, ShieldCheck, ShoppingCart, Trash2, UserPlus, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { SharedLayout } from '@/components/SharedLayout'
 
 type Perm = { view: boolean; edit: boolean }
 type Staff = { id: string; email: string; is_admin: boolean; banned: boolean; staff_permissions: { module: string; can_view: boolean; can_edit: boolean }[] }
