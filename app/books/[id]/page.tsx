@@ -47,7 +47,7 @@ export default function BookProfilePage() {
   const stages = [
     { key: 'contract', label: 'التعاقد', done: true, note: book.contract_date || '—' },
     { key: 'printing', label: 'المطبعة', done: Boolean(printing?.delivered_to_author), note: printing?.received_at || (printing?.entered_at ? 'دخلت المطبعة' : 'لم تدخل المطبعة') },
-    { key: 'warehouse', label: 'المخزن', done: warehouseTotal > 0, note: `${warehouseTotal.toLocaleString('ar-EG')} نسخة` },
+    { key: 'warehouse', label: 'المخزن', done: warehouseTotal > 0, note: `${warehouseTotal.toLocaleString('en-US')} نسخة` },
     { key: 'orders', label: 'الاوردرات', done: orders.length > 0, note: `${orders.length} أوردر` },
   ]
 
@@ -77,7 +77,7 @@ export default function BookProfilePage() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Factory size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المطبعة</span></div><p className="text-sm">{printing?.received_at ? `استُلمت في ${printing.received_at}` : 'لم تُستلم بعد'}</p><p className="mt-1 text-xs text-[#a3907e]">تسليم الكاتب: {printing?.delivered_to_author ? 'تم' : 'لم يتم'}</p></div>
-          <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Warehouse size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المخزن</span></div><p className="text-sm">{warehouseTotal.toLocaleString('ar-EG')} نسخة</p><p className="mt-1 text-xs text-[#a3907e]">آخر استلام: {lastReceived || '—'}</p></div>
+          <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><Warehouse size={18} /><span className="text-xs font-semibold text-[#6b5d53]">المخزن</span></div><p className="text-sm">{warehouseTotal.toLocaleString('en-US')} نسخة</p><p className="mt-1 text-xs text-[#a3907e]">آخر استلام: {lastReceived || '—'}</p></div>
           <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5"><div className="mb-2 flex items-center gap-2 text-[#d8573a]"><ShoppingCart size={18} /><span className="text-xs font-semibold text-[#6b5d53]">الاوردرات</span></div><p className="text-sm">{orders.length} أوردر</p><p className="mt-1 text-xs text-[#a3907e]">{orders.filter(o => o.delivered).length} تم تسليمه</p></div>
         </div>
       </div>

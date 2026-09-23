@@ -155,8 +155,8 @@ export default function ContractsPage() {
                     <td className="px-5 py-4"><div className="flex items-center gap-3">{book.cover_image_url ? <img src={book.cover_image_url} alt="" className="size-10 shrink-0 rounded-lg object-cover" /> : <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#faf1eb]"><BookOpen size={16} className="text-[#d8573a]" /></div>}<span className="font-semibold">{book.title}</span></div></td>
                     <td className="px-5 py-4 text-[#6b5d53]">{book.book_authors?.map(a => a.authors.name).join('، ') || <span className="text-[#c4b3a1]">—</span>}</td>
                     <td className="px-5 py-4 text-[#6b5d53]">{book.category || '—'}</td>
-                    <td className="px-5 py-4 text-[#6b5d53]">{book.printed_copies?.toLocaleString('ar-EG')}</td>
-                    <td className="px-5 py-4 text-[#6b5d53]">{book.price_egp?.toLocaleString('ar-EG')}</td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.printed_copies?.toLocaleString('en-US')}</td>
+                    <td className="px-5 py-4 text-[#6b5d53]">{book.price_egp?.toLocaleString('en-US')}</td>
                     <td className="px-5 py-4 text-xs text-[#8a7969]">{book.contract_date || '—'}</td>
                     <td className="px-5 py-4"><div className="flex gap-2"><button onClick={() => setDetail(book)} className="rounded-lg bg-[#faf1eb] px-3 py-1.5 text-xs font-semibold text-[#d8573a] transition hover:bg-[#f2b590]/30">عرض</button>{canEdit('contracts') && <button onClick={() => openEdit(book)} className="rounded-lg border border-[#e8dfd3] px-3 py-1.5 text-xs font-semibold text-[#6b5d53] transition hover:border-[#d8573a] hover:text-[#d8573a]"><Pencil size={12} /></button>}</div></td>
                   </tr>

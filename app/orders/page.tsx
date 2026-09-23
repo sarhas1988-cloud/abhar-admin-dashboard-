@@ -186,7 +186,7 @@ function StatCard({ title, value, icon: Icon, color = '#d8573a' }: { title: stri
   return (
     <div className="rounded-2xl border border-[#e8dfd3] bg-white p-5 shadow-[0_2px_8px_-2px_rgba(90,60,40,0.06)]">
       <div className="flex items-start justify-between"><p className="text-xs text-[#a3907e]">{title}</p><div className="flex size-10 items-center justify-center rounded-xl" style={{ background: `${color}15`, color }}><Icon size={17} /></div></div>
-      <p className="font-serif mt-3 text-3xl font-semibold" style={{ color }}>{value.toLocaleString('ar-EG')}</p>
+      <p className="font-serif mt-3 text-3xl font-semibold" style={{ color }}>{value.toLocaleString('en-US')}</p>
     </div>
   )
 }

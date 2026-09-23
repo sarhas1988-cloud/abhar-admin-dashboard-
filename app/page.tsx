@@ -109,7 +109,7 @@ export default function HomePage() {
                   </div>
                   <div className="hidden text-right sm:block">
                     <p className="text-xs text-[#a3907e]">{book.category || '—'}</p>
-                    <p className="mt-0.5 text-xs font-semibold text-[#6b5d53]">{book.printed_copies?.toLocaleString('ar-EG')} نسخة</p>
+                    <p className="mt-0.5 text-xs font-semibold text-[#6b5d53]">{book.printed_copies?.toLocaleString('en-US')} نسخة</p>
                   </div>
                   <ArrowLeft size={16} className="shrink-0 text-[#a3907e] transition group-hover:-translate-x-1 group-hover:text-[#d8573a]" />
                 </Link>
@@ -160,7 +160,7 @@ function Stat({ title, value, icon: Icon, accent }: { title: string; value: stri
       <div className="relative flex items-start justify-between">
         <div>
           <p className="text-xs text-[#a3907e]">{title}</p>
-          <p className="font-serif mt-3 text-3xl font-semibold text-[#2a211c]">{typeof value === 'number' ? value.toLocaleString('ar-EG') : value}</p>
+          <p className="font-serif mt-3 text-3xl font-semibold text-[#2a211c]">{typeof value === 'number' ? value.toLocaleString('en-US') : value}</p>
         </div>
         <div className="flex size-11 items-center justify-center rounded-xl" style={{ background: `${accent}15`, color: accent }}>
           <Icon size={19} />
