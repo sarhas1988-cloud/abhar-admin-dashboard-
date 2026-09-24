@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, ChevronDown, ClipboardList, DollarSign, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
+import { BarChart3, ChevronDown, ClipboardList, DollarSign, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, ShoppingCart, Trash2, Warehouse, X } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
@@ -28,6 +28,7 @@ export function SharedLayout({ title, subtitle, children }: Props) {
     { label: 'المصروفات', href: '/expenses', icon: DollarSign, show: isAdmin },
     { label: 'سجل التغييرات', href: '/activity', icon: History, show: isAdmin },
     { label: 'الإعدادات', href: '/settings', icon: Settings, show: isAdmin },
+    { label: 'سلة المحذوفات', href: '/trash', icon: Trash2, show: isAdmin },
   ].filter(i => i.show), [isAdmin, canView])
 
   return (
