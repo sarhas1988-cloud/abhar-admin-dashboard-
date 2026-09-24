@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,17 +20,26 @@ export function useStaffAccess() {
       if (!user) { setLoading(false); return }
       setEmail(user.email ?? '')
       const { data: profile } = await supabase.from('staff_profiles').select('is_admin').eq('id', user.id).single()
-      setIsAdmin(Boolean(profile?.is_admin))
-      const { data: perms } = await supabase.from('staff_permissions').select('module, can_view, can_edit').eq('staff_id', user.id)
-      const map = {} as Record<ModuleKey, Perm>
-      perms?.forEach(p => { map[p.module as ModuleKey] = { can_view: p.can_view, can_edit: p.can_edit } })
-      setPermissions(map)
+      const admin = Boolean(profile?.is_admin)
+      setIsAdmin(admin)
+      if (!admin) {
+        const { data: perms } = await supabase.from('staff_permissions').select('module, can_view, can_edit').eq('staff_id', user.id)
+        const map = {} as Record<ModuleKey, Perm>
+        perms?.forEach(p => { map[p.module as ModuleKey] = { can_view: p.can_view, can_edit: p.can_edit } })
+        setPermissions(map)
+      }
       setLoading(false)
     })
   }, [])
 
-  const canView = (moduleKey: ModuleKey) => isAdmin || Boolean(permissions[moduleKey]?.can_view)
-  const canEdit = (moduleKey: ModuleKey) => isAdmin || Boolean(permissions[moduleKey]?.can_edit)
+  const canView = useCallback(
+    (moduleKey: ModuleKey) => isAdmin || Boolean(permissions[moduleKey]?.can_view),
+    [isAdmin, permissions]
+  )
+  const canEdit = useCallback(
+    (moduleKey: ModuleKey) => isAdmin || Boolean(permissions[moduleKey]?.can_edit),
+    [isAdmin, permissions]
+  )
 
   const signOut = async () => {
     const supabase = createClient()
