@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Ban, Bell, Check, ClipboardList, Copy, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, RotateCcw, SendHorizontal, ShieldCheck, ShoppingCart, Trash2, UserPlus, Warehouse, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Ban, Check, Copy, Plus, RotateCcw, SendHorizontal, Trash2, UserPlus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
@@ -20,17 +18,7 @@ const modules = [
 const emptyPermissions = Object.fromEntries(modules.map(m => [m.key, { view: false, edit: false }])) as Record<string, Perm>
 
 export default function StaffPage() {
-  const pathname = usePathname()
-  const { loading: accessLoading, isAdmin, canView, signOut } = useStaffAccess()
-  const navItems = useMemo(() => [
-    { label: 'نظرة عامة', href: '/', icon: LayoutDashboard, show: true },
-    { label: 'التعاقدات والقسم الفني', href: '/contracts', icon: ClipboardList, show: canView('contracts') },
-    { label: 'المطبعة', href: '/printing', icon: Factory, show: canView('printing') },
-    { label: 'المنصات', href: '/platforms', icon: Grid2X2, show: canView('platforms') },
-    { label: 'المخزن', href: '/warehouse', icon: Warehouse, show: canView('warehouse') },
-    { label: 'الاوردرات', href: '/orders', icon: ShoppingCart, show: canView('orders') },
-    { label: 'الموظفين والصلاحيات', href: '/staff', icon: ShieldCheck, show: isAdmin },
-  ].filter(i => i.show), [isAdmin, accessLoading])
+  const { loading: accessLoading, isAdmin } = useStaffAccess()
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [staff, setStaff] = useState<Staff[]>([])
@@ -119,33 +107,15 @@ export default function StaffPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
-      <aside className={`fixed inset-y-0 right-0 z-40 flex w-[252px] flex-col border-l border-[#e8dfd3] bg-white px-5 py-6 transition-transform lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
-        <div className="flex items-center justify-between pb-8"><div className="flex items-center gap-2.5">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#faf1eb] p-1.5"><img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain" /></div>
-          <div className="min-w-0"><p className="font-serif text-base font-semibold leading-tight text-[#2a211c]">إبهار</p><p className="text-[10px] leading-tight text-[#a3907e]">للتوزيع والنشر</p></div>
-        </div><button onClick={() => setMenuOpen(false)} className="lg:hidden" aria-label="إغلاق القائمة"><X /></button></div>
-        <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.16em] text-[#a3907e]">القائمة الرئيسية</p>
-        <nav className="flex flex-col gap-1.5">{navItems.map(({ label, href, icon: Icon }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium ${pathname === href ? 'bg-[#faf1eb] text-[#d8573a]' : 'text-[#6b5d53] hover:bg-[#faf6f0]'}`}><Icon size={19} /><span>{label}</span></Link>)}</nav>
-        <div className="mt-auto border-t border-[#ede4d7] pt-4"><button onClick={signOut} className="flex items-center gap-3 px-3.5 py-3 text-sm text-[#6b5d53] hover:text-[#c04a2f]"><LogOut size={19} />تسجيل الخروج</button></div>
-      </aside>
-      {menuOpen && <button className="fixed inset-0 z-30 bg-[#2a211c]/20 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة" />}
-
-      <section className="lg:mr-[252px]">
-        <header className="flex h-[84px] items-center justify-between border-b border-[#e8dfd3] bg-white px-5 sm:px-8"><div className="flex items-center gap-3"><button onClick={() => setMenuOpen(true)} className="lg:hidden" aria-label="فتح القائمة"><Menu /></button><div><p className="text-xs text-[#8a7969]">التحكم في وصول الموظفين — للأدمن فقط</p><h1 className="font-serif mt-1 text-xl font-semibold sm:text-2xl">الموظفين والصلاحيات</h1></div></div><Bell size={19} className="text-[#6b5d53]" /></header>
-        <div className="mx-auto max-w-[1400px] p-5 pb-24 sm:p-8 lg:pb-8">
-          {!accessLoading && !isAdmin ? <p className="rounded-xl border border-[#e8dfd3] bg-white p-6 text-center text-sm text-[#a3907e]">هذا القسم للأدمن فقط.</p> : (
-            <>
-              <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />صلاحيات مخصصة لكل قسم</div><h2 className="font-serif text-3xl font-semibold sm:text-4xl">فريق العمل</h2><p className="mt-2 text-sm text-[#8a7969]">أضف موظفاً بالإيميل وحدد الأقسام التي يمكنه رؤيتها وتعديلها — هتاخد لينك دعوة تبعتيه له بنفسك.</p></div><button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><UserPlus size={18} />إضافة موظف</button></div>
-              <section className="rounded-2xl border border-[#e8dfd3] bg-white shadow-[0_1px_3px_-1px_rgba(90,60,40,0.06)]">
-                <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b border-[#ede4d7] text-xs text-[#a3907e]"><th className="px-5 py-4">الإيميل</th><th className="px-5 py-4">الأقسام المتاحة</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">إجراءات</th></tr></thead><tbody>{staff.filter(m => !m.is_admin).map(member => <tr key={member.id} className="border-b border-[#f0e7db] last:border-0"><td className="px-5 py-4 font-semibold">{member.email}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">{accessSummary(member).length ? accessSummary(member).map(label => <span key={label} className="rounded-full bg-[#faf1eb] px-2.5 py-1 text-[11px] font-medium text-[#d8573a]">{label}</span>) : <span className="text-xs text-[#a3907e]">لا يوجد وصول بعد</span>}</div></td><td className="px-5 py-4">{member.banned ? <span className="rounded-full bg-[#f7dbd3] px-3 py-1 text-xs font-semibold text-[#c04a2f]">موقوف</span> : <span className="rounded-full bg-[#e8f2df] px-3 py-1 text-xs font-semibold text-[#4a7a2c]">نشط</span>}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-2"><button onClick={() => openEdit(member)} className="rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#d8573a]">تعديل الصلاحيات</button><button disabled={actionLoading === member.id} onClick={() => toggleBan(member)} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${member.banned ? 'border-[#e8dfd3] text-[#4a7a2c]' : 'border-[#e8dfd3] text-[#8a5a1a]'} disabled:opacity-50`}>{member.banned ? <><RotateCcw size={13} />تفعيل</> : <><Ban size={13} />إيقاف</>}</button><button disabled={actionLoading === member.id} onClick={() => resend(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#6b5d53] disabled:opacity-50"><SendHorizontal size={13} />إعادة إرسال لينك</button><button onClick={() => setConfirmDelete(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#c04a2f]"><Trash2 size={13} />حذف</button></div></td></tr>)}</tbody></table>{!loading && staff.filter(m => !m.is_admin).length === 0 && <p className="p-8 text-center text-sm text-[#a3907e]">لا يوجد موظفين مضافين بعد.</p>}</div>
-              </section>
-            </>
-          )}
-        </div>
-      </section>
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-1 overflow-x-auto border-t border-[#e8dfd3] bg-white px-2 py-2 lg:hidden">{navItems.map(({ label, href, icon: Icon }) => <Link key={href} href={href} className={`flex min-w-[72px] flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[10px] ${pathname === href ? 'text-[#d8573a]' : 'text-[#8a7969]'}`}><Icon size={18} /><span className="truncate">{label}</span></Link>)}</nav>
-
+    <SharedLayout title="الموظفين والصلاحيات" subtitle="التحكم في وصول الموظفين">
+      {!accessLoading && !isAdmin ? <p className="rounded-2xl border border-[#e8dfd3] bg-white p-8 text-center text-sm text-[#a3907e]">هذا القسم للأدمن فقط.</p> : (
+        <>
+          <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-1 text-[11px] font-medium tracking-[0.18em] text-[#d8573a]">إدارة الفريق</p><h2 className="font-serif text-3xl font-semibold sm:text-4xl">فريق العمل</h2><p className="mt-2 text-sm text-[#8a7969]">أضف موظفاً بالإيميل وحدد الأقسام التي يمكنه رؤيتها وتعديلها — هتاخد لينك دعوة تبعتيه له بنفسك.</p></div><button onClick={openCreate} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] transition hover:bg-[#c04a2f]"><UserPlus size={16} />إضافة موظف</button></div>
+          <section className="overflow-hidden rounded-3xl border border-[#e8dfd3] bg-white shadow-[0_2px_8px_-2px_rgba(90,60,40,0.06)]">
+            <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-right text-sm"><thead><tr className="border-b border-[#ede4d7] bg-[#fdf9f4] text-[11px] font-medium text-[#a3907e]"><th className="px-5 py-3.5">الإيميل</th><th className="px-5 py-3.5">الأقسام المتاحة</th><th className="px-5 py-3.5">الحالة</th><th className="px-5 py-3.5">إجراءات</th></tr></thead><tbody>{staff.filter(m => !m.is_admin).map(member => <tr key={member.id} className="border-b border-[#f0e7db] last:border-0 transition hover:bg-[#fdf9f4]"><td className="px-5 py-4 font-semibold">{member.email}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">{accessSummary(member).length ? accessSummary(member).map(label => <span key={label} className="rounded-full bg-[#faf1eb] px-2.5 py-1 text-[11px] font-medium text-[#d8573a]">{label}</span>) : <span className="text-xs text-[#a3907e]">لا يوجد وصول بعد</span>}</div></td><td className="px-5 py-4">{member.banned ? <span className="rounded-full bg-[#f7dbd3] px-3 py-1 text-xs font-semibold text-[#c04a2f]">موقوف</span> : <span className="rounded-full bg-[#e8f2df] px-3 py-1 text-xs font-semibold text-[#4a7a2c]">نشط</span>}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-2"><button onClick={() => openEdit(member)} className="rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#d8573a] transition hover:bg-[#faf1eb]">تعديل الصلاحيات</button><button disabled={actionLoading === member.id} onClick={() => toggleBan(member)} className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${member.banned ? 'border-[#e8dfd3] text-[#4a7a2c] hover:bg-[#e8f2df]' : 'border-[#e8dfd3] text-[#8a5a1a] hover:bg-[#fbeed6]'} disabled:opacity-50`}>{member.banned ? <><RotateCcw size={13} />تفعيل</> : <><Ban size={13} />إيقاف</>}</button><button disabled={actionLoading === member.id} onClick={() => resend(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#6b5d53] transition hover:bg-[#faf6f0] disabled:opacity-50"><SendHorizontal size={13} />إعادة إرسال لينك</button><button onClick={() => setConfirmDelete(member)} className="flex items-center gap-1.5 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#c04a2f] transition hover:bg-[#f7dbd3]"><Trash2 size={13} />حذف</button></div></td></tr>)}</tbody></table>{!loading && staff.filter(m => !m.is_admin).length === 0 && <p className="p-10 text-center text-sm text-[#a3907e]">لا يوجد موظفين مضافين بعد.</p>}</div>
+          </section>
+        </>
+      )}
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/30 p-3 sm:p-6">
           <section className="my-3 w-full max-w-2xl rounded-2xl bg-white shadow-2xl sm:my-8">
@@ -185,6 +155,6 @@ export default function StaffPage() {
           </section>
         </div>
       )}
-    </main>
+    </SharedLayout>
   )
 }
