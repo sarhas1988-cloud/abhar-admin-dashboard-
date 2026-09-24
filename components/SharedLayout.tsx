@@ -6,12 +6,14 @@ import { usePathname } from 'next/navigation'
 import { BarChart3, ChevronDown, ClipboardList, DollarSign, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { useCompanyInfo } from '@/lib/useCompanyInfo'
 
 type Props = { title: string; subtitle?: string; children: React.ReactNode }
 
 export function SharedLayout({ title, subtitle, children }: Props) {
   const pathname = usePathname()
   const { email, isAdmin, canView, signOut } = useStaffAccess()
+  const { company } = useCompanyInfo()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const navItems = useMemo(() => [
@@ -39,8 +41,8 @@ export function SharedLayout({ title, subtitle, children }: Props) {
               <img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain" />
             </div>
             <div className="min-w-0">
-              <p className="font-serif text-sm font-semibold leading-tight text-[#2a211c]">إبهار</p>
-              <p className="text-[10px] leading-tight text-[#a3907e]">للتوزيع والنشر</p>
+              <p className="font-serif text-sm font-semibold leading-tight text-[#2a211c]">{company.name.split(' ')[0] || 'إبهار'}</p>
+              <p className="text-[10px] leading-tight text-[#a3907e]">{company.name.includes(' ') ? company.name.split(' ').slice(1).join(' ') : 'للتوزيع والنشر'}</p>
             </div>
           </div>
           <button onClick={() => setMenuOpen(false)} className="rounded-lg p-2 text-[#8a7969] hover:bg-[#faf1eb] lg:hidden" aria-label="إغلاق القائمة"><X size={18} /></button>

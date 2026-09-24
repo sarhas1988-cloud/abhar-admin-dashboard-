@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { BarChart3, BookOpen, Download, Factory, FileSpreadsheet, Package, ShoppingCart, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
+import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import { SharedLayout } from '@/components/SharedLayout'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
@@ -21,6 +22,7 @@ const reportTypes: { key: ReportType; label: string; icon: typeof BookOpen; desc
 
 export default function ReportsPage() {
   const { isAdmin } = useStaffAccess()
+  const { company } = useCompanyInfo()
   const [exporting, setExporting] = useState<ReportType | null>(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -31,6 +33,18 @@ export default function ReportsPage() {
     setExporting(type)
     const wb = XLSX.utils.book_new()
     const today = new Date().toISOString().slice(0, 10)
+
+    // header row ببيانات الشركة في كل تقرير
+    const addSheet = (rows: any[], sheetName: string) => {
+      const headerRows = [
+        { '': company.name },
+        { '': `${company.phone ? 'تليفون: ' + company.phone : ''}${company.email ? ' | ' + company.email : ''}${company.address ? ' | ' + company.address : ''}` },
+        { '': `تقرير: ${sheetName} — ${today}` },
+        {},
+      ]
+      const ws = XLSX.utils.json_to_sheet([...headerRows, ...rows])
+      XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    }
 
     try {
       if (type === 'books') {
@@ -61,7 +75,7 @@ export default function ReportsPage() {
           'الموسم/المعرض': b.season || '',
           'تليفون الكاتب': b.author_phone || '',
         }))
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'الكتب')
+        addSheet(rows, 'الكتب')
       }
 
       if (type === 'authors') {
@@ -72,7 +86,7 @@ export default function ReportsPage() {
           'عدد الكتب': a.book_authors?.length || 0,
           'الكتب': a.book_authors?.map((ba: any) => ba.books?.title).filter(Boolean).join('، ') || '',
         }))
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'المؤلفين')
+        addSheet(rows, 'المؤلفين')
       }
 
       if (type === 'printing') {
@@ -86,7 +100,7 @@ export default function ReportsPage() {
           'تاريخ الاستلام': j.received_at || '',
           'تم تسليم الكاتب': j.delivered_to_author ? 'نعم' : 'لا',
         }))
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'المطبعة')
+        addSheet(rows, 'المطبعة')
       }
 
       if (type === 'warehouse') {
@@ -105,7 +119,7 @@ export default function ReportsPage() {
             'حالة المخزون': total === 0 ? 'نفد' : total < 20 ? 'منخفض' : 'طبيعي',
           }
         })
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'ملخص المخزون')
+        addSheet(summaryRows, 'ملخص المخزون')
 
         // تفاصيل الدفعات
         const detailRows = (logs ?? []).map((l: any) => {
@@ -116,7 +130,7 @@ export default function ReportsPage() {
             'عدد النسخ': l.quantity,
           }
         })
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'تفاصيل الدفعات')
+        addSheet(detailRows, 'تفاصيل الدفعات')
       }
 
       if (type === 'orders') {
@@ -136,7 +150,7 @@ export default function ReportsPage() {
           'تاريخ التسليم': o.delivered_date || '',
           'الحالة': o.delivered_date ? 'تم التسليم' : 'قيد التسليم',
         }))
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'الأوردرات')
+        addSheet(rows, 'الأوردرات')
       }
 
       if (type === 'platforms') {
@@ -151,7 +165,7 @@ export default function ReportsPage() {
           })
           return row
         })
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'المنصات')
+        addSheet(rows, 'المنصات')
       }
 
       const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })

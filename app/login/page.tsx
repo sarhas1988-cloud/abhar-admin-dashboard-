@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Feather, Mail, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyInfo } from '@/lib/useCompanyInfo'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { company } = useCompanyInfo()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -40,7 +42,7 @@ export default function LoginPage() {
               <img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain brightness-0 invert" />
             </div>
             <div>
-              <p className="font-serif text-lg font-semibold">إبهار</p>
+              <p className="font-serif text-lg font-semibold">{company.name.split(' ')[0] || 'إبهار'}</p>
               <p className="text-xs text-white/60">للتوزيع والنشر</p>
             </div>
           </div>
@@ -65,7 +67,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} إبهار للتوزيع والنشر</p>
+          <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} {company.name}</p>
         </aside>
 
         {/* الجانب الأيمن: الفورم */}

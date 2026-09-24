@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, CheckCircle2, Circle, Download, Factory, QrCode, ShoppingCart, Warehouse } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import QRCode from 'qrcode'
 
 export default function BookProfilePage() {
@@ -16,6 +17,7 @@ export default function BookProfilePage() {
   const [orders, setOrders] = useState<any[]>([])
   const [qrUrl, setQrUrl] = useState('')
   const [loading, setLoading] = useState(true)
+  const { company } = useCompanyInfo()
   const supabase = createClient()
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function BookProfilePage() {
       setOrders(o ?? [])
       // Generate QR with book info
       if (b) {
-        const qrText = `Book: ${b.title}\nISBN: ${b.isbn || 'N/A'}\nID: ${params.id}`
+        const qrText = `${company.name}\nBook: ${b.title}\nISBN: ${b.isbn || 'N/A'}\nID: ${params.id}`
         const url = await QRCode.toDataURL(qrText, { width: 200, margin: 1, color: { dark: '#2a211c', light: '#ffffff' } })
         setQrUrl(url)
       }
