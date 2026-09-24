@@ -40,7 +40,7 @@ export default function ContractsPage() {
 
   const loadBooks = async () => {
     setLoading(true)
-    const { data } = await supabase.from('books').select('*, book_authors(authors(id, name))').order('created_at', { ascending: false })
+    const { data } = await supabase.from('books').select('*, book_authors(authors(id, name))').is('deleted_at', null).order('created_at', { ascending: false })
     setBooks((data as any) ?? [])
     setLoading(false)
   }
