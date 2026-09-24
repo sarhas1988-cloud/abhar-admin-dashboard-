@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { Bell, ClipboardList, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaffAccess } from '@/lib/useStaffAccess'
@@ -16,19 +14,8 @@ type Link_ = { book_id: string; platform_id: string; status: Status; notes: stri
 const statusStyle: Record<Status, string> = { 'متاح': 'bg-[#e8f2df] text-[#4a7a2c]', 'غير متاح': 'bg-[#f7dbd3] text-[#c04a2f]', 'قيد المراجعة': 'bg-[#fbeed6] text-[#8a5a1a]' }
 
 export default function PlatformsPage() {
-  const pathname = usePathname()
-  const { loading: accessLoading, isAdmin, canView, canEdit, signOut } = useStaffAccess()
-  const navItems = useMemo(() => [
-    { label: 'نظرة عامة', href: '/', icon: LayoutDashboard, show: true },
-    { label: 'التعاقدات والقسم الفني', href: '/contracts', icon: ClipboardList, show: canView('contracts') },
-    { label: 'المطبعة', href: '/printing', icon: Factory, show: canView('printing') },
-    { label: 'المنصات', href: '/platforms', icon: Grid2X2, show: canView('platforms') },
-    { label: 'المخزن', href: '/warehouse', icon: Warehouse, show: canView('warehouse') },
-    { label: 'الاوردرات', href: '/orders', icon: ShoppingCart, show: canView('orders') },
-    { label: 'الموظفين والصلاحيات', href: '/staff', icon: ShieldCheck, show: isAdmin },
-  ].filter(i => i.show), [isAdmin, accessLoading])
+  const { loading: accessLoading, canView, canEdit } = useStaffAccess()
 
-  const [menuOpen, setMenuOpen] = useState(false)
   const [books, setBooks] = useState<Book[]>([])
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [links, setLinks] = useState<Link_[]>([])
@@ -71,21 +58,8 @@ export default function PlatformsPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
-      <aside className={`fixed inset-y-0 right-0 z-40 flex w-[252px] flex-col border-l border-[#e8dfd3] bg-white px-5 py-6 transition-transform lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
-        <div className="flex items-center justify-between pb-8"><div className="flex items-center gap-2.5">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#faf1eb] p-1.5"><img src="/abhar-logo.png" alt="إبهار" className="h-full w-full object-contain" /></div>
-          <div className="min-w-0"><p className="font-serif text-base font-semibold leading-tight text-[#2a211c]">إبهار</p><p className="text-[10px] leading-tight text-[#a3907e]">للتوزيع والنشر</p></div>
-        </div><button onClick={() => setMenuOpen(false)} className="lg:hidden" aria-label="إغلاق القائمة"><X /></button></div>
-        <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.16em] text-[#a3907e]">القائمة الرئيسية</p>
-        <nav className="flex flex-col gap-1.5">{navItems.map(({ label, href, icon: Icon }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium ${pathname === href ? 'bg-[#faf1eb] text-[#d8573a]' : 'text-[#6b5d53] hover:bg-[#faf6f0]'}`}><Icon size={19} /><span>{label}</span></Link>)}</nav>
-        <div className="mt-auto border-t border-[#ede4d7] pt-4"><button onClick={signOut} className="flex items-center gap-3 px-3.5 py-3 text-sm text-[#6b5d53] hover:text-[#c04a2f]"><LogOut size={19} />تسجيل الخروج</button></div>
-      </aside>
-      {menuOpen && <button className="fixed inset-0 z-30 bg-[#2a211c]/20 lg:hidden" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة" />}
-
-      <section className="lg:mr-[252px]">
-        <header className="flex h-[84px] items-center justify-between border-b border-[#e8dfd3] bg-white px-5 sm:px-8"><div className="flex items-center gap-3"><button onClick={() => setMenuOpen(true)} className="lg:hidden" aria-label="فتح القائمة"><Menu /></button><div><p className="text-xs text-[#8a7969]">متابعة الكتب على منصات البيع</p><h1 className="font-serif mt-1 text-xl font-semibold sm:text-2xl">المنصات</h1></div></div><Bell size={19} className="text-[#6b5d53]" /></header>
-        <div className="mx-auto max-w-[1400px] p-5 pb-24 sm:p-8 lg:pb-8">
+    <SharedLayout title="المنصات" subtitle="متابعة الكتب على منصات البيع">
+      <div className="mx-auto max-w-[1400px]">
           {!accessLoading && !canView('platforms') ? <p className="rounded-xl border border-[#e8dfd3] bg-white p-6 text-center text-sm text-[#a3907e]">مفيش صلاحية وصول لهذا القسم.</p> : (
             <>
               <div className="mb-6 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />متابعة يدوية — لا يوجد ربط تلقائي بالمنصات</div>
@@ -102,9 +76,7 @@ export default function PlatformsPage() {
               </section>
             </>
           )}
-        </div>
-      </section>
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-1 overflow-x-auto border-t border-[#e8dfd3] bg-white px-2 py-2 lg:hidden">{navItems.map(({ label, href, icon: Icon }) => <Link key={href} href={href} className={`flex min-w-[72px] flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1 text-[10px] ${pathname === href ? 'text-[#d8573a]' : 'text-[#8a7969]'}`}><Icon size={18} /><span className="truncate">{label}</span></Link>)}</nav>
+      </div>
 
       {editingBook && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#2a211c]/30 p-3 sm:p-6">
@@ -127,6 +99,6 @@ export default function PlatformsPage() {
           </section>
         </div>
       )}
-    </main>
+    </SharedLayout>
   )
 }
