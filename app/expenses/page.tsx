@@ -29,7 +29,7 @@ export default function ExpensesPage() {
   const load = async () => {
     setLoading(true)
     const [{ data: e }, { data: b }] = await Promise.all([
-      supabase.from('expenses').select('*, books(id, title)').order('expense_date', { ascending: false }),
+      supabase.from('expenses').select('*, books(id, title)').is('deleted_at', null).order('expense_date', { ascending: false }),
       supabase.from('books').select('id, title').order('title'),
     ])
     setExpenses((e as any) ?? [])
@@ -71,7 +71,7 @@ export default function ExpensesPage() {
 
   const deleteExpense = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return
-    await supabase.from('expenses').delete().eq('id', id)
+    await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     load()
   }
 
