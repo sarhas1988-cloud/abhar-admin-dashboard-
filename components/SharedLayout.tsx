@@ -12,7 +12,7 @@ type Props = { title: string; subtitle?: string; children: React.ReactNode }
 
 export function SharedLayout({ title, subtitle, children }: Props) {
   const pathname = usePathname()
-  const { loading: accessLoading, email, isAdmin, canView, signOut } = useStaffAccess()
+  const { email, isAdmin, canView, signOut } = useStaffAccess()
   const { company } = useCompanyInfo()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -28,7 +28,7 @@ export function SharedLayout({ title, subtitle, children }: Props) {
     { label: 'المصروفات', href: '/expenses', icon: DollarSign, show: isAdmin },
     { label: 'سجل التغييرات', href: '/activity', icon: History, show: isAdmin },
     { label: 'الإعدادات', href: '/settings', icon: Settings, show: isAdmin },
-  ].filter(i => i.show), [isAdmin, accessLoading])
+  ].filter(i => i.show), [isAdmin, canView])
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
