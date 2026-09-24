@@ -25,8 +25,9 @@ export async function middleware(request: NextRequest) {
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
   const isPublicInvite = request.nextUrl.pathname.startsWith('/invite') || request.nextUrl.pathname.startsWith('/api/invite')
+  const isPublicBook = request.nextUrl.pathname.startsWith('/book/') || request.nextUrl.pathname.startsWith('/api/public-book/')
 
-  if (!user && !isAuthPage && !isPublicInvite) {
+  if (!user && !isAuthPage && !isPublicInvite && !isPublicBook) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

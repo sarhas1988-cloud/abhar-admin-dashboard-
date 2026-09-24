@@ -34,10 +34,10 @@ export default function BookProfilePage() {
       setWarehouseTotal((w ?? []).reduce((sum, r) => sum + r.quantity, 0))
       setLastReceived(w?.[0]?.received_at ?? '')
       setOrders(o ?? [])
-      // Generate QR with book info
+      // Generate QR with public book URL
       if (b) {
-        const qrText = `${company.name}\nBook: ${b.title}\nISBN: ${b.isbn || 'N/A'}\nID: ${params.id}`
-        const url = await QRCode.toDataURL(qrText, { width: 200, margin: 1, color: { dark: '#2a211c', light: '#ffffff' } })
+        const publicUrl = `${window.location.origin}/book/${params.id}`
+        const url = await QRCode.toDataURL(publicUrl, { width: 200, margin: 1, color: { dark: '#2a211c', light: '#ffffff' } })
         setQrUrl(url)
       }
       setLoading(false)
@@ -95,7 +95,7 @@ export default function BookProfilePage() {
         {qrUrl && (
           <section className="mt-6 rounded-2xl border border-[#e8dfd3] bg-white p-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-[#faf1eb] text-[#d8573a]"><QrCode size={18} /></div><div><h3 className="font-semibold text-[#2a211c]">QR Code</h3><p className="text-xs text-[#a3907e]">امسحه بالكاميرا لعرض بيانات الكتاب</p></div></div>
+              <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-[#faf1eb] text-[#d8573a]"><QrCode size={18} /></div><div><h3 className="font-semibold text-[#2a211c]">QR Code</h3><p className="text-xs text-[#a3907e]">امسحه بالكاميرا لفتح صفحة الكتاب العامة</p></div></div>
               <a href={qrUrl} download={`QR-${book?.title || 'book'}.png`} className="flex items-center gap-1.5 rounded-xl bg-[#faf1eb] px-4 py-2 text-xs font-semibold text-[#d8573a] transition hover:bg-[#f2b590]/30"><Download size={14} />تحميل</a>
             </div>
             <div className="mt-4 flex justify-center"><img src={qrUrl} alt="QR Code" className="size-40 rounded-xl border border-[#ede4d7] bg-white p-2" /></div>
