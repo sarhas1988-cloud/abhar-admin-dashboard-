@@ -115,7 +115,7 @@ export default function LoginPage() {
 
               <button disabled={loading} type="submit"
                 className="group relative w-full overflow-hidden rounded-xl bg-[#d8573a] py-3.5 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.5)] transition hover:bg-[#c04a2f] disabled:opacity-60">
-                <span className="relative z-10">{loading ? 'جارٍ الدخول...' : 'دخول'}</span>
+                <span className="relative z-10">{loading ? <><Spinner size={14} className="text-white" />جارٍ الدخول...</> : 'دخول'}</span>
                 <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </button>
             </form>

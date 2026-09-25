@@ -1,18 +1,41 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, ChevronDown, ClipboardList, DollarSign, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, ShoppingCart, Trash2, Warehouse, X } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
+import { ToastProvider } from '@/components/Toast'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
+
+function NavProgress() {
+  const pathname = usePathname()
+  const prev = useRef(pathname)
+  const [width, setWidth] = useState(0)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    if (prev.current === pathname) return
+    prev.current = pathname
+    setVisible(true); setWidth(0)
+    const t1 = setTimeout(() => setWidth(75), 30)
+    const t2 = setTimeout(() => setWidth(100), 450)
+    const t3 = setTimeout(() => { setVisible(false); setWidth(0) }, 700)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [pathname])
+  if (!visible) return null
+  return (
+    <div className="fixed inset-x-0 top-0 z-[100] h-[3px] bg-[#d8573a]/20">
+      <div className="h-full bg-[#d8573a] transition-all duration-500 ease-out" style={{ width: `${width}%` }} />
+    </div>
+  )
+}
 
 type Props = { title: string; subtitle?: string; children: React.ReactNode }
 
 export function SharedLayout({ title, subtitle, children }: Props) {
   const pathname = usePathname()
-  const { email, isAdmin, canView, signOut } = useStaffAccess()
+  const { loading: accessLoading, email, isAdmin, canView, signOut } = useStaffAccess()
   const { company } = useCompanyInfo()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -32,8 +55,9 @@ export function SharedLayout({ title, subtitle, children }: Props) {
   ].filter(i => i.show), [isAdmin, canView])
 
   return (
+    <ToastProvider>
     <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
-      {/* السايدبار */}
+      <NavProgress />
       <aside className={`fixed inset-y-0 right-0 z-40 flex w-[280px] flex-col border-l border-[#e8dfd3] bg-white px-5 py-6 transition-transform duration-300 lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
         {/* هيدر السايدبار */}
         <div className="flex items-center justify-between pb-8">
@@ -119,5 +143,6 @@ export function SharedLayout({ title, subtitle, children }: Props) {
         })}
       </nav>
     </main>
+    </ToastProvider>
   )
 }

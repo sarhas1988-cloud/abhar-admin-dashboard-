@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, BookOpen, Factory, Plus, ShoppingCart, TrendingUp, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner, StatSkeleton } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -70,10 +72,10 @@ export default function HomePage() {
 
       {/* بطاقات الإحصائيات */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat title="إجمالي الكتب" value={loading ? '...' : books.length} icon={BookOpen} accent="#d8573a" />
-        <Stat title="إجمالي النسخ المطبوعة" value={loading ? '...' : totalPrinted} icon={Factory} accent="#b8752f" />
-        <Stat title="أوردرات قيد التسليم" value={loading ? '...' : pendingOrders} icon={ShoppingCart} accent="#8a3b2e" />
-        <Stat title="إجمالي المؤلفين" value={loading ? '...' : authorsCount} icon={Users} accent="#c9915f" />
+        <Stat title="إجمالي الكتب" value={loading ? null : books.length} icon={BookOpen} accent="#d8573a" />
+        <Stat title="إجمالي النسخ المطبوعة" value={loading ? null : totalPrinted} icon={Factory} accent="#b8752f" />
+        <Stat title="أوردرات قيد التسليم" value={loading ? null : pendingOrders} icon={ShoppingCart} accent="#8a3b2e" />
+        <Stat title="إجمالي المؤلفين" value={loading ? null : authorsCount} icon={Users} accent="#c9915f" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
@@ -153,14 +155,14 @@ export default function HomePage() {
   )
 }
 
-function Stat({ title, value, icon: Icon, accent }: { title: string; value: string | number; icon: typeof BookOpen; accent: string }) {
+function Stat({ title, value, icon: Icon, accent }: { title: string; value: string | number | null; icon: typeof BookOpen; accent: string }) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-[#e8dfd3] bg-white p-5 shadow-[0_2px_8px_-2px_rgba(90,60,40,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(90,60,40,0.15)]">
       <div className="absolute -left-8 -top-8 size-24 rounded-full opacity-[0.06] transition group-hover:opacity-10" style={{ background: accent }} />
       <div className="relative flex items-start justify-between">
         <div>
           <p className="text-xs text-[#a3907e]">{title}</p>
-          <p className="font-serif mt-3 text-3xl font-semibold text-[#2a211c]">{typeof value === 'number' ? value.toLocaleString('en-US') : value}</p>
+          {value === null ? <StatSkeleton /> : <p className="font-serif mt-3 text-3xl font-semibold text-[#2a211c]">{typeof value === 'number' ? value.toLocaleString('en-US') : value}</p>}
         </div>
         <div className="flex size-11 items-center justify-center rounded-xl" style={{ background: `${accent}15`, color: accent }}>
           <Icon size={19} />

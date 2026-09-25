@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, ClipboardList, Factory, Grid2X2, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -14,6 +16,7 @@ type Link_ = { book_id: string; platform_id: string; status: Status; notes: stri
 const statusStyle: Record<Status, string> = { 'متاح': 'bg-[#e8f2df] text-[#4a7a2c]', 'غير متاح': 'bg-[#f7dbd3] text-[#c04a2f]', 'قيد المراجعة': 'bg-[#fbeed6] text-[#8a5a1a]' }
 
 export default function PlatformsPage() {
+  const { toast } = useToast()
   const { loading: accessLoading, canView, canEdit } = useStaffAccess()
 
   const [books, setBooks] = useState<Book[]>([])
@@ -46,7 +49,7 @@ export default function PlatformsPage() {
     if (!newPlatform.trim()) return
     await supabase.from('platforms').insert({ name: newPlatform.trim() })
     setNewPlatform('')
-    load()
+    load(); toast('تمت إضافة المنصة')
   }
 
   const updateStatus = async (bookId: string, platformId: string, status: Status, notes: string) => {

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, RotateCcw, ShoppingCart, Trash2, DollarSign } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -10,6 +12,7 @@ type DeletedItem = { id: string; type: 'book' | 'order' | 'expense'; title: stri
 
 export default function TrashPage() {
   const { isAdmin } = useStaffAccess()
+  const { toast } = useToast()
   const [items, setItems] = useState<DeletedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState('')
@@ -38,7 +41,7 @@ export default function TrashPage() {
     const table = item.type === 'book' ? 'books' : item.type === 'order' ? 'orders' : 'expenses'
     await supabase.from(table).update({ deleted_at: null }).eq('id', item.id)
     setProcessing('')
-    load()
+    load(); toast('تمت الاسترجاع بنجاح')
   }
 
   const permanentDelete = async (item: DeletedItem) => {
@@ -47,7 +50,7 @@ export default function TrashPage() {
     const table = item.type === 'book' ? 'books' : item.type === 'order' ? 'orders' : 'expenses'
     await supabase.from(table).delete().eq('id', item.id)
     setProcessing('')
-    load()
+    load(); toast('تم الحذف النهائي', 'warning')
   }
 
   const typeIcon: Record<string, typeof BookOpen> = { book: BookOpen, order: ShoppingCart, expense: DollarSign }

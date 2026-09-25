@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Ban, Check, Copy, Plus, RotateCcw, SendHorizontal, Trash2, UserPlus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -18,6 +20,7 @@ const modules = [
 const emptyPermissions = Object.fromEntries(modules.map(m => [m.key, { view: false, edit: false }])) as Record<string, Perm>
 
 export default function StaffPage() {
+  const { toast } = useToast()
   const { loading: accessLoading, isAdmin } = useStaffAccess()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -86,7 +89,7 @@ export default function StaffPage() {
     setActionLoading(member.id)
     const res = await fetch('/api/staff', { method: 'PATCH', body: JSON.stringify({ staffId: member.id, action: member.banned ? 'unban' : 'ban' }) })
     setActionLoading('')
-    if (res.ok) load()
+    if (res.ok) { load(); toast(member.banned ? 'تم إيقاف الموظف' : 'تم تفعيل الموظف', member.banned ? 'warning' : 'success') }
   }
 
   const resend = async (member: Staff) => {
@@ -103,7 +106,7 @@ export default function StaffPage() {
     const res = await fetch('/api/staff', { method: 'DELETE', body: JSON.stringify({ staffId: confirmDelete.id }) })
     setActionLoading('')
     setConfirmDelete(null)
-    if (res.ok) load()
+    if (res.ok) { load(); toast('تم حذف الموظف', 'warning') }
   }
 
   return (
@@ -138,7 +141,7 @@ export default function StaffPage() {
                   <label><span className="mb-2 block text-xs font-semibold text-[#6b5d53]">إيميل الموظف</span><input required type="email" disabled={Boolean(editing)} value={email} onChange={e => setEmail(e.target.value)} placeholder="name@abhar.sa" className="w-full rounded-xl border border-[#e8dfd3] px-3 py-3 text-sm outline-none focus:border-[#d8573a] disabled:bg-[#faf6f0]" /></label>
                   <div className="overflow-hidden rounded-xl border border-[#e8dfd3]"><table className="w-full text-right text-sm"><thead><tr className="border-b border-[#ede4d7] bg-[#faf6f0] text-xs text-[#a3907e]"><th className="px-4 py-3">القسم</th><th className="px-4 py-3">مشاهدة</th><th className="px-4 py-3">تعديل</th></tr></thead><tbody>{modules.map(m => <tr key={m.key} className="border-b border-[#f0e7db] last:border-0"><td className="px-4 py-3 font-medium">{m.label}</td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.view ?? false} onChange={() => togglePerm(m.key, 'view')} className="size-4 accent-[#d8573a]" /></td><td className="px-4 py-3"><input type="checkbox" checked={permissions[m.key]?.edit ?? false} onChange={() => togglePerm(m.key, 'edit')} className="size-4 accent-[#d8573a]" /></td></tr>)}</tbody></table></div>
                   {error && <p className="rounded-lg bg-[#f7dbd3] px-3 py-2 text-xs text-[#c04a2f]">{error}</p>}
-                  <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-4"><button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold">إلغاء</button><button disabled={saving} type="submit" className="rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button></div>
+                  <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-4"><button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold">إلغاء</button><button disabled={saving} type="submit" className="rounded-xl bg-[#d8573a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? <><Spinner size={14} className="text-white" />جارٍ...</> : 'حفظ'}</button></div>
                 </form>
               </>
             )}

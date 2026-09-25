@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, DollarSign, Factory, History, Package, ShoppingCart, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -23,6 +25,7 @@ function timeAgo(iso: string) {
 
 export default function ActivityPage() {
   const { isAdmin } = useStaffAccess()
+  const { toast } = useToast()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowDownUp, BookOpen, ExternalLink, Pencil, Plus, Search, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -22,6 +24,7 @@ type Book = {
 }
 
 export default function ContractsPage() {
+  const { toast } = useToast()
   const { loading: accessLoading, canView, canEdit } = useStaffAccess()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('الكل')
@@ -120,7 +123,7 @@ export default function ContractsPage() {
       if (authorId) await supabase.from('book_authors').insert({ book_id: bookId, author_id: authorId })
     }
 
-    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks()
+    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(editing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')
   }
 
   return (
@@ -145,7 +148,7 @@ export default function ContractsPage() {
               </label>
               <select value={category} onChange={e => setCategory(e.target.value)} className="rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs"><option>الكل</option>{categories.map(item => <option key={item}>{item}</option>)}</select>
               <button onClick={() => setSortAsc(v => !v)} className="flex items-center gap-1.5 rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs text-[#6b5d53]"><ArrowDownUp size={13} />ترتيب</button>
-              <span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filteredBooks.length} كتاب`}</span>
+              <span className="text-xs text-[#a3907e]">{loading ? '' : `${filteredBooks.length} كتاب`}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-right text-sm">
@@ -233,7 +236,7 @@ function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChang
 
           <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-5 sm:col-span-2 lg:col-span-3">
             <button type="button" onClick={onClose} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold text-[#6b5d53]">إلغاء</button>
-            <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : editing ? 'حفظ التعديل' : 'حفظ الكتاب'}</button>
+            <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] disabled:opacity-60">{saving ? <><Spinner size={14} className="text-white" />جارٍ الحفظ...</> : editing ? 'حفظ التعديل' : 'حفظ الكتاب'}</button>
           </div>
         </form>
       </section>

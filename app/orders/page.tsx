@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Pencil, Plus, Search, ShoppingCart, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -19,6 +21,7 @@ const emptyItem: OrderItem = { book_id: '', quantity: 1, unit_price: 0 }
 function daysSince(date: string) { return Math.floor((Date.now() - new Date(date).getTime()) / 86400000) }
 
 export default function OrdersPage() {
+  const { toast } = useToast()
   const { loading: accessLoading, canView, canEdit } = useStaffAccess()
   const [query, setQuery] = useState('')
   const [deliveredFilter, setDeliveredFilter] = useState('all')
@@ -89,7 +92,7 @@ export default function OrdersPage() {
     }
     const orderItems = items.filter(i => i.book_id).map(i => ({ order_id: orderId, book_id: i.book_id, quantity: Number(i.quantity) || 1, unit_price: Number(i.unit_price) || 0 }))
     if (orderItems.length) await supabase.from('order_items').insert(orderItems)
-    setSaving(false); setFormOpen(false); load()
+    setSaving(false); setFormOpen(false); load(); toast(editing ? 'تم تعديل الأوردر' : 'تمت إضافة الأوردر')
   }
 
   return (
@@ -116,7 +119,7 @@ export default function OrdersPage() {
               <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs text-[#a3907e]"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث باسم العميل أو الكتاب" className="w-full bg-transparent outline-none" /></label>
               <select value={deliveredFilter} onChange={e => setDeliveredFilter(e.target.value)} className="rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs"><option value="all">كل الحالات</option><option value="delivered">تم التسليم</option><option value="pending">قيد التسليم</option></select>
               <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className="rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs"><option value="all">كل المصادر</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
-              <span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filtered.length} أوردر`}</span>
+              <span className="text-xs text-[#a3907e]">{loading ? '' : `${filtered.length} أوردر`}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[950px] text-right text-sm">
@@ -172,7 +175,7 @@ export default function OrdersPage() {
               </div>
               <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-5">
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold text-[#6b5d53]">إلغاء</button>
-                <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : editing ? 'حفظ التعديل' : 'حفظ الأوردر'}</button>
+                <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(216,87,58,0.4)] disabled:opacity-60">{saving ? <><Spinner size={14} className="text-white" />جارٍ الحفظ...</> : editing ? 'حفظ التعديل' : 'حفظ الأوردر'}</button>
               </div>
             </form>
           </section>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { BarChart3, BookOpen, Download, Factory, FileSpreadsheet, Package, ShoppingCart, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import { SharedLayout } from '@/components/SharedLayout'

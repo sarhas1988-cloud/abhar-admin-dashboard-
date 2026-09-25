@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, CheckCircle2, Circle, Download, Factory, QrCode, ShoppingCart, Warehouse } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import QRCode from 'qrcode'
 

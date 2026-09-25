@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, ClipboardList, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, ShoppingCart, Warehouse, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -11,6 +13,7 @@ type Batch = { id: string; book_id: string; received_at: string; quantity: numbe
 const LOW_STOCK = 20
 
 export default function WarehousePage() {
+  const { toast } = useToast()
   const { loading: accessLoading, canView, canEdit } = useStaffAccess()
 
   const [query, setQuery] = useState('')
@@ -67,7 +70,7 @@ export default function WarehousePage() {
             <>
               <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#d8573a]"><span className="size-2 rounded-full bg-[#d8573a]" />إجمالي كل كتاب هو مجموع دفعاته</div><h2 className="font-serif text-3xl font-semibold sm:text-4xl">مخزون الكتب</h2><p className="mt-2 text-sm text-[#8a7969]">سجل كل دفعة وصلت للمخزن وتابع الرصيد الحالي.</p></div>{canEdit('warehouse') && <button onClick={() => setFormOpen(true)} className="flex w-fit items-center gap-2 rounded-xl bg-[#d8573a] px-4 py-3 text-sm font-semibold text-white"><Plus size={18} />إضافة دفعة جديدة</button>}</div>
               <section className="rounded-2xl border border-[#e8dfd3] bg-white shadow-[0_1px_3px_-1px_rgba(90,60,40,0.06)]">
-                <div className="flex flex-col gap-3 border-b border-[#ede4d7] p-4 sm:flex-row sm:items-center"><label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs text-[#a3907e]"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث باسم الكتاب" className="w-full bg-transparent outline-none" /></label><label className="flex items-center gap-2 text-xs text-[#6b5d53]"><input type="checkbox" checked={lowOnly} onChange={e => setLowOnly(e.target.checked)} className="size-4 accent-[#d8573a]" />منخفض المخزون فقط</label><span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filtered.length} كتب`}</span></div>
+                <div className="flex flex-col gap-3 border-b border-[#ede4d7] p-4 sm:flex-row sm:items-center"><label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs text-[#a3907e]"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث باسم الكتاب" className="w-full bg-transparent outline-none" /></label><label className="flex items-center gap-2 text-xs text-[#6b5d53]"><input type="checkbox" checked={lowOnly} onChange={e => setLowOnly(e.target.checked)} className="size-4 accent-[#d8573a]" />منخفض المخزون فقط</label><span className="text-xs text-[#a3907e]">{loading ? '' : `${filtered.length} كتب`}</span></div>
                 <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-right text-sm"><thead><tr className="border-b border-[#ede4d7] text-xs text-[#a3907e]"><th className="px-5 py-4">اسم الكتاب</th><th className="px-5 py-4">اسم الكاتب</th><th className="px-5 py-4">إجمالي النسخ المستلمة</th><th className="px-5 py-4">تاريخ آخر استلام</th><th className="px-5 py-4">حالة المخزون</th><th className="px-5 py-4">إجراء</th></tr></thead><tbody>{filtered.map(row => <tr key={row.book.id} className="border-b border-[#f0e7db] last:border-0"><td className="px-5 py-4 font-semibold">{row.book.title}</td><td className="px-5 py-4 text-[#6b5d53]">{row.book.book_authors?.map(a => a.authors.name).join('، ')}</td><td className="px-5 py-4 text-[#6b5d53]">{row.total.toLocaleString('en-US')}</td><td className="px-5 py-4 text-[#6b5d53]">{row.lastReceived}</td><td className="px-5 py-4">{stockBadge(row.total)}</td><td className="px-5 py-4"><button onClick={() => setHistoryBook(row.book)} className="flex items-center gap-1.5 rounded-lg border border-[#e8dfd3] px-3 py-2 text-xs font-semibold text-[#d8573a]"><History size={14} />السجل</button></td></tr>)}</tbody></table>{!loading && filtered.length === 0 && <p className="p-8 text-center text-sm text-[#a3907e]">لا توجد كتب مسجلة بعد.</p>}</div>
               </section>
             </>

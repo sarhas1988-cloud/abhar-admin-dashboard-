@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DollarSign, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
+import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
@@ -15,6 +17,7 @@ const emptyForm = { bookId: '', category: 'إداري', description: '', amount:
 
 export default function ExpensesPage() {
   const { isAdmin } = useStaffAccess()
+  const { toast } = useToast()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,13 +69,13 @@ export default function ExpensesPage() {
     const payload = { book_id: form.bookId || null, category: form.category, description: form.description, amount: Number(form.amount), currency: form.currency, expense_date: form.date, receipt_url: receiptUrl }
     if (editing) await supabase.from('expenses').update(payload).eq('id', editing.id)
     else await supabase.from('expenses').insert(payload)
-    setSaving(false); setFormOpen(false); load()
+    setSaving(false); setFormOpen(false); load(); toast(editing ? 'تم تعديل المصروف' : 'تمت إضافة المصروف')
   }
 
   const deleteExpense = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return
     await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    load()
+    load(); toast('تم نقل المصروف لسلة المحذوفات', 'warning')
   }
 
   return (
@@ -107,7 +110,7 @@ export default function ExpensesPage() {
             <div className="flex flex-col gap-3 border-b border-[#ede4d7] bg-[#fdf9f4] p-4 sm:flex-row sm:items-center">
               <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs text-[#a3907e]"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="ابحث" className="w-full bg-transparent outline-none" /></label>
               <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="rounded-xl border border-[#e8dfd3] bg-white px-3 py-2.5 text-xs"><option>الكل</option>{expenseCategories.map(c => <option key={c}>{c}</option>)}</select>
-              <span className="text-xs text-[#a3907e]">{loading ? 'جارٍ التحميل...' : `${filtered.length} مصروف`}</span>
+              <span className="text-xs text-[#a3907e]">{loading ? '' : `${filtered.length} مصروف`}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-right text-sm">
@@ -142,7 +145,7 @@ export default function ExpensesPage() {
               <div className="sm:col-span-2"><label className="label">مرتبط بكتاب <span className="font-normal text-[#a3907e]">(اختياري)</span></label><select value={form.bookId} onChange={e => setForm(f => ({...f, bookId: e.target.value}))} className="inp"><option value="">مصروف عام</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select></div>
               <div className="flex justify-end gap-3 border-t border-[#ede4d7] pt-5 sm:col-span-2">
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-[#e8dfd3] px-5 py-3 text-sm font-semibold text-[#6b5d53]">إلغاء</button>
-                <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button>
+                <button disabled={saving} className="rounded-xl bg-[#d8573a] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">{saving ? <><Spinner size={14} className="text-white" />جارٍ...</> : 'حفظ'}</button>
               </div>
             </form>
           </section>
