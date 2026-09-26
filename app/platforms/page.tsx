@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 
 type Book = { id: string; title: string; book_authors: { authors: { name: string } }[] }
 type Platform = { id: string; name: string }
@@ -30,14 +31,15 @@ export default function PlatformsPage() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: b }, { data: p }, { data: l }] = await Promise.all([
-      supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title'),
-      supabase.from('platforms').select('*').order('name'),
-      supabase.from('book_platforms').select('*'),
+    const [b, p, l] = await Promise.all([
+      fetchAll((from, to) => supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title').order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('platforms').select('*').order('name').order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('book_platforms').select('*').order('book_id').order('platform_id').range(from, to)),
     ])
-    setBooks((b as any) ?? [])
-    setPlatforms(p ?? [])
-    setLinks((l as any) ?? [])
+    if (b.error || p.error || l.error) toast('حصل خطأ في تحميل البيانات: ' + (b.error ?? p.error ?? l.error)!.message, 'error')
+    setBooks(b.data)
+    setPlatforms(p.data)
+    setLinks(l.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -47,13 +49,15 @@ export default function PlatformsPage() {
 
   const addPlatform = async () => {
     if (!newPlatform.trim()) return
-    await supabase.from('platforms').insert({ name: newPlatform.trim() })
+    const { error } = await supabase.from('platforms').insert({ name: newPlatform.trim() })
+    if (error) { toast('حصل خطأ في إضافة المنصة: ' + error.message, 'error'); return }
     setNewPlatform('')
     load(); toast('تمت إضافة المنصة')
   }
 
   const updateStatus = async (bookId: string, platformId: string, status: Status, notes: string) => {
-    await supabase.from('book_platforms').upsert({ book_id: bookId, platform_id: platformId, status, notes }, { onConflict: 'book_id,platform_id' })
+    const { error } = await supabase.from('book_platforms').upsert({ book_id: bookId, platform_id: platformId, status, notes }, { onConflict: 'book_id,platform_id' })
+    if (error) { toast('حصل خطأ في الحفظ: ' + error.message, 'error'); return }
     setLinks(current => {
       const exists = current.some(l => l.book_id === bookId && l.platform_id === platformId)
       return exists ? current.map(l => l.book_id === bookId && l.platform_id === platformId ? { ...l, status, notes } : l) : [...current, { book_id: bookId, platform_id: platformId, status, notes }]

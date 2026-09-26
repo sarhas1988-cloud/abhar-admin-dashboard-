@@ -35,11 +35,28 @@ export function NotificationBell() {
   const boxRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
+  // "read" is per user now: stored in notification_reads, not on the shared notification row
   const load = async () => {
-    const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(15)
-    cachedItems = (data as any) ?? []
-    setItems(cachedItems ?? [])
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user.id
+    const { data } = await supabase.from('notifications').select('id, type, title, body, link, created_at').order('created_at', { ascending: false }).limit(15)
+    const list = (data ?? []) as Omit<Notification, 'read'>[]
+    let readIds = new Set<string>()
+    if (userId && list.length) {
+      const { data: reads } = await supabase.from('notification_reads').select('notification_id').eq('user_id', userId).in('notification_id', list.map(n => n.id))
+      readIds = new Set((reads ?? []).map(r => String(r.notification_id)))
+    }
+    cachedItems = list.map(n => ({ ...n, read: readIds.has(String(n.id)) }))
+    setItems(cachedItems)
     setLoading(false)
+  }
+
+  const markRead = async (ids: string[]) => {
+    if (ids.length === 0) return
+    const { error } = await supabase.from('notification_reads').upsert(ids.map(id => ({ notification_id: id })), { onConflict: 'notification_id,user_id', ignoreDuplicates: true })
+    if (error) return
+    cachedItems = (cachedItems ?? items).map(i => ids.includes(i.id) ? { ...i, read: true } : i)
+    setItems(cachedItems)
   }
 
   useEffect(() => {
@@ -50,13 +67,7 @@ export function NotificationBell() {
     return () => { supabase.removeChannel(channel); document.removeEventListener('mousedown', handleClick) }
   }, [])
 
-  const markAllRead = async () => {
-    const unread = items.filter(i => !i.read).map(i => i.id)
-    if (unread.length === 0) return
-    await supabase.from('notifications').update({ read: true }).in('id', unread)
-    cachedItems = items.map(i => ({ ...i, read: true }))
-    setItems(cachedItems)
-  }
+  const markAllRead = () => markRead(items.filter(i => !i.read).map(i => i.id))
 
   const unreadCount = items.filter(i => !i.read).length
 
@@ -98,7 +109,8 @@ export function NotificationBell() {
                     {!item.read && <span className="mt-1.5 block size-2 shrink-0 rounded-full bg-[#d8573a]" />}
                   </div>
                 )
-                return item.link ? <Link key={item.id} href={item.link} onClick={() => setOpen(false)}>{inner}</Link> : <div key={item.id}>{inner}</div>
+                const onOpen = () => { if (!item.read) markRead([item.id]) }
+                return item.link ? <Link key={item.id} href={item.link} onClick={() => { onOpen(); setOpen(false) }}>{inner}</Link> : <div key={item.id} onClick={onOpen}>{inner}</div>
               })
             )}
           </div>

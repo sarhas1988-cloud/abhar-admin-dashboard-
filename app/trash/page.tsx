@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 
 type DeletedItem = { id: string; type: 'book' | 'order' | 'expense'; title: string; deleted_at: string }
 
@@ -21,9 +22,9 @@ export default function TrashPage() {
   const load = async () => {
     setLoading(true)
     const [{ data: books }, { data: orders }, { data: expenses }] = await Promise.all([
-      supabase.from('books').select('id, title, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
-      supabase.from('orders').select('id, customer_name, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
-      supabase.from('expenses').select('id, category, amount, currency, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
+      fetchAll((from, to) => supabase.from('books').select('id, title, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('orders').select('id, customer_name, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('expenses').select('id, category, amount, currency, deleted_at').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).order('id').range(from, to)),
     ])
     const all: DeletedItem[] = [
       ...(books ?? []).map((b: any) => ({ id: b.id, type: 'book' as const, title: b.title, deleted_at: b.deleted_at })),
@@ -39,8 +40,9 @@ export default function TrashPage() {
   const restore = async (item: DeletedItem) => {
     setProcessing(item.id)
     const table = item.type === 'book' ? 'books' : item.type === 'order' ? 'orders' : 'expenses'
-    await supabase.from(table).update({ deleted_at: null }).eq('id', item.id)
+    const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', item.id)
     setProcessing('')
+    if (error) { toast('حصل خطأ في الاسترجاع: ' + error.message, 'error'); return }
     load(); toast('تمت الاسترجاع بنجاح')
   }
 
@@ -48,8 +50,15 @@ export default function TrashPage() {
     if (!confirm(`هل أنت متأكد من الحذف النهائي لـ "${item.title}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) return
     setProcessing(item.id)
     const table = item.type === 'book' ? 'books' : item.type === 'order' ? 'orders' : 'expenses'
-    await supabase.from(table).delete().eq('id', item.id)
+    // select() returns the deleted rows: an empty result means RLS blocked it or the row is still referenced
+    const { data, error } = await supabase.from(table).delete().eq('id', item.id).select('id')
     setProcessing('')
+    if (error) {
+      const linked = error.code === '23503'
+      toast(linked ? 'مينفعش يتحذف نهائياً لأنه مرتبط ببيانات تانية (طباعة / مخزن / أوردرات)' : 'حصل خطأ في الحذف: ' + error.message, 'error')
+      return
+    }
+    if (!data?.length) { toast('الحذف ما تمش — مفيش صلاحية', 'error'); return }
     load(); toast('تم الحذف النهائي', 'warning')
   }
 

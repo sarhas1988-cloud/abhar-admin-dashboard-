@@ -7,6 +7,8 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
+import { ShowMoreButton, useVisibleRows } from '@/components/ShowMore'
 
 type Book = { id: string; title: string }
 type Source = 'الموقع' | 'تليفون' | 'سوشيال ميديا' | 'أخرى'
@@ -45,12 +47,13 @@ export default function OrdersPage() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: b }, { data: o }] = await Promise.all([
-      supabase.from('books').select('id, title').is('deleted_at', null).order('title'),
-      supabase.from('orders').select('*, order_items(id, book_id, quantity, unit_price, books(id, title))').is('deleted_at', null).order('order_date', { ascending: false }),
+    const [b, o] = await Promise.all([
+      fetchAll<Book>((from, to) => supabase.from('books').select('id, title').is('deleted_at', null).order('title').order('id').range(from, to)),
+      fetchAll<Order>((from, to) => supabase.from('orders').select('*, order_items(id, book_id, quantity, unit_price, books(id, title))').is('deleted_at', null).order('order_date', { ascending: false }).order('id').range(from, to)),
     ])
-    setBooks(b ?? [])
-    setOrders((o as any) ?? [])
+    if (b.error || o.error) toast('حصل خطأ في تحميل البيانات: ' + (b.error ?? o.error)!.message, 'error')
+    setBooks(b.data)
+    setOrders(o.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -60,6 +63,7 @@ export default function OrdersPage() {
     const bookNames = o.order_items?.map(i => i.books?.title).join(' ') ?? ''
     return `${bookNames} ${o.customer_name}`.includes(query) && (deliveredFilter === 'all' || (deliveredFilter === 'delivered' ? isDelivered(o) : !isDelivered(o))) && (sourceFilter === 'all' || o.source === sourceFilter)
   }), [orders, query, deliveredFilter, sourceFilter])
+  const { visible, remaining, showMore } = useVisibleRows(filtered, 50, `${query}|${deliveredFilter}|${sourceFilter}`)
   const pending = orders.filter(o => !isDelivered(o))
   const overdue = pending.filter(o => daysSince(o.order_date) > 7)
 
@@ -80,19 +84,12 @@ export default function OrdersPage() {
     if (!customerName || !orderDate || items.some(i => !i.book_id)) return
     setSaving(true)
     const payload = { customer_name: customerName, customer_phone: phone, customer_address: address, price: Number(totalPrice) || 0, source, order_date: orderDate, received_date: receivedDate || null, delivered_date: deliveredDate || null, delivered: Boolean(deliveredDate), book_id: items[0]?.book_id }
-    let orderId: string
-    if (editing) {
-      await supabase.from('orders').update(payload).eq('id', editing.id)
-      orderId = editing.id
-      await supabase.from('order_items').delete().eq('order_id', orderId)
-    } else {
-      const { data: row, error } = await supabase.from('orders').insert(payload).select().single()
-      if (error || !row) { setSaving(false); return }
-      orderId = row.id
-    }
-    const orderItems = items.filter(i => i.book_id).map(i => ({ order_id: orderId, book_id: i.book_id, quantity: Number(i.quantity) || 1, unit_price: Number(i.unit_price) || 0 }))
-    if (orderItems.length) await supabase.from('order_items').insert(orderItems)
-    setSaving(false); setFormOpen(false); load(); toast(editing ? 'تم تعديل الأوردر' : 'تمت إضافة الأوردر')
+    const orderItems = items.filter(i => i.book_id).map(i => ({ book_id: i.book_id, quantity: Number(i.quantity) || 1, unit_price: Number(i.unit_price) || 0 }))
+    // order + items saved in one database transaction: either everything is saved or nothing is
+    const { error } = await supabase.rpc('save_order', { p_order_id: editing?.id ?? null, p_order: payload, p_items: orderItems })
+    setSaving(false)
+    if (error) { toast('حصل خطأ في الحفظ: ' + error.message, 'error'); return }
+    setFormOpen(false); load(); toast(editing ? 'تم تعديل الأوردر' : 'تمت إضافة الأوردر')
   }
 
   return (
@@ -124,7 +121,7 @@ export default function OrdersPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[950px] text-right text-sm">
                 <thead><tr className="border-b border-[#ede4d7] bg-[#fdf9f4] text-[11px] font-medium text-[#a3907e]"><th className="px-5 py-3.5">الكتب</th><th className="px-5 py-3.5">العميل</th><th className="px-5 py-3.5">المصدر</th><th className="px-5 py-3.5">تاريخ الأوردر</th><th className="px-5 py-3.5">تاريخ الاستلام</th><th className="px-5 py-3.5">تاريخ التسليم</th><th className="px-5 py-3.5">الحالة</th><th className="px-5 py-3.5">إجراءات</th></tr></thead>
-                <tbody>{filtered.map(order => (
+                <tbody>{visible.map(order => (
                   <tr key={order.id} className="border-b border-[#f0e7db] last:border-0 transition hover:bg-[#fdf9f4]">
                     <td className="px-5 py-4"><div className="flex flex-col gap-0.5">{order.order_items?.map(i => <span key={i.id} className="text-xs">{i.books?.title} <span className="text-[#a3907e]">×{i.quantity}</span></span>) || <span className="text-[#c4b3a1]">—</span>}</div></td>
                     <td className="px-5 py-4"><p className="font-semibold">{order.customer_name}</p><p className="text-xs text-[#8a7969]">{order.customer_phone}</p></td>
@@ -139,6 +136,7 @@ export default function OrdersPage() {
               </table>
               {!loading && filtered.length === 0 && <p className="p-10 text-center text-sm text-[#a3907e]">لا توجد أوردرات مسجلة بعد.</p>}
             </div>
+            <ShowMoreButton remaining={remaining} onClick={showMore} />
           </section>
         </>
       )}

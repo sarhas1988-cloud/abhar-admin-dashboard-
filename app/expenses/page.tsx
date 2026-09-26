@@ -8,6 +8,8 @@ import { openPrivateFile, safeStoragePath } from '@/lib/storage'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
+import { ShowMoreButton, useVisibleRows } from '@/components/ShowMore'
 
 type Book = { id: string; title: string }
 type Expense = { id: string; book_id: string | null; category: string; description: string; amount: number; currency: string; expense_date: string; receipt_url: string | null; books?: Book | null }
@@ -32,12 +34,13 @@ export default function ExpensesPage() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: e }, { data: b }] = await Promise.all([
-      supabase.from('expenses').select('*, books(id, title)').is('deleted_at', null).order('expense_date', { ascending: false }),
-      supabase.from('books').select('id, title').is('deleted_at', null).order('title'),
+    const [e, b] = await Promise.all([
+      fetchAll((from, to) => supabase.from('expenses').select('*, books(id, title)').is('deleted_at', null).order('expense_date', { ascending: false }).order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('books').select('id, title').is('deleted_at', null).order('title').order('id').range(from, to)),
     ])
-    setExpenses((e as any) ?? [])
-    setBooks(b ?? [])
+    if (e.error || b.error) toast('حصل خطأ في تحميل البيانات: ' + (e.error ?? b.error)!.message, 'error')
+    setExpenses(e.data)
+    setBooks(b.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -45,6 +48,7 @@ export default function ExpensesPage() {
   const filtered = useMemo(() => expenses.filter(e =>
     `${e.description} ${e.books?.title || ''} ${e.category}`.includes(query) && (catFilter === 'الكل' || e.category === catFilter)
   ), [expenses, query, catFilter])
+  const { visible, remaining, showMore } = useVisibleRows(filtered, 50, `${query}|${catFilter}`)
 
   const totalEGP = useMemo(() => expenses.filter(e => e.currency === 'EGP').reduce((s, e) => s + e.amount, 0), [expenses])
 
@@ -69,14 +73,18 @@ export default function ExpensesPage() {
     }
 
     const payload = { book_id: form.bookId || null, category: form.category, description: form.description, amount: Number(form.amount), currency: form.currency, expense_date: form.date, receipt_url: receiptUrl }
-    if (editing) await supabase.from('expenses').update(payload).eq('id', editing.id)
-    else await supabase.from('expenses').insert(payload)
-    setSaving(false); setFormOpen(false); load(); toast(editing ? 'تم تعديل المصروف' : 'تمت إضافة المصروف')
+    const { error } = editing
+      ? await supabase.from('expenses').update(payload).eq('id', editing.id)
+      : await supabase.from('expenses').insert(payload)
+    setSaving(false)
+    if (error) { toast('حصل خطأ في الحفظ: ' + error.message, 'error'); return }
+    setFormOpen(false); load(); toast(editing ? 'تم تعديل المصروف' : 'تمت إضافة المصروف')
   }
 
   const deleteExpense = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return
-    await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    const { error } = await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    if (error) { toast('حصل خطأ في الحذف: ' + error.message, 'error'); return }
     load(); toast('تم نقل المصروف لسلة المحذوفات', 'warning')
   }
 
@@ -117,7 +125,7 @@ export default function ExpensesPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-right text-sm">
                 <thead><tr className="border-b border-[#ede4d7] bg-[#fdf9f4] text-[11px] font-medium text-[#a3907e]"><th className="px-5 py-3.5">التصنيف</th><th className="px-5 py-3.5">الوصف</th><th className="px-5 py-3.5">الكتاب</th><th className="px-5 py-3.5">المبلغ</th><th className="px-5 py-3.5">التاريخ</th><th className="px-5 py-3.5">إجراءات</th></tr></thead>
-                <tbody>{filtered.map(exp => (
+                <tbody>{visible.map(exp => (
                   <tr key={exp.id} className="border-b border-[#f0e7db] last:border-0 transition hover:bg-[#fdf9f4]">
                     <td className="px-5 py-4"><span className="rounded-full bg-[#faf1eb] px-3 py-1 text-xs font-semibold text-[#d8573a]">{exp.category}</span></td>
                     <td className="px-5 py-4 text-[#6b5d53]">{exp.description || '—'}</td>
@@ -130,6 +138,7 @@ export default function ExpensesPage() {
               </table>
               {!loading && filtered.length === 0 && <p className="p-10 text-center text-sm text-[#a3907e]">لا توجد مصروفات مسجلة بعد.</p>}
             </div>
+            <ShowMoreButton remaining={remaining} onClick={showMore} />
           </section>
         </>
       )}

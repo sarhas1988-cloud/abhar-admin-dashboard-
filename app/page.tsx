@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner, StatSkeleton } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 
 type Book = { id: string; title: string; category: string; printed_copies: number; contract_date: string; cover_image_url: string | null; book_authors: { authors: { name: string } }[] }
 const palette = ['#d8573a', '#8a3b2e', '#b8752f', '#d4a05a', '#c9915f', '#e8b8a5']
@@ -15,6 +16,8 @@ const palette = ['#d8573a', '#8a3b2e', '#b8752f', '#d4a05a', '#c9915f', '#e8b8a5
 export default function HomePage() {
   const { isAdmin, canView } = useStaffAccess()
   const [books, setBooks] = useState<Book[]>([])
+  // all books (light columns) for totals and the category chart — `books` is only the 6 latest
+  const [allBooks, setAllBooks] = useState<{ id: string; category: string | null; printed_copies: number | null }[]>([])
   const [authorsCount, setAuthorsCount] = useState(0)
   const [pendingOrders, setPendingOrders] = useState(0)
   const [totalOrdersCount, setTotalOrdersCount] = useState(0)
@@ -24,13 +27,15 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       setLoading(true)
-      const [{ data: b }, { count: authorsC }, { count: pendingC }, { count: totalC }] = await Promise.all([
+      const [{ data: b }, { count: authorsC }, { count: pendingC }, { count: totalC }, all] = await Promise.all([
         supabase.from('books').select('id, title, category, printed_copies, contract_date, cover_image_url, book_authors(authors(name))').is('deleted_at', null).order('created_at', { ascending: false }).limit(6),
         supabase.from('authors').select('id', { count: 'exact', head: true }),
         supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('delivered', false),
         supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+        fetchAll((from, to) => supabase.from('books').select('id, category, printed_copies').is('deleted_at', null).order('id').range(from, to)),
       ])
       setBooks((b as any) ?? [])
+      setAllBooks(all.data)
       setAuthorsCount(authorsC ?? 0)
       setPendingOrders(pendingC ?? 0)
       setTotalOrdersCount(totalC ?? 0)
@@ -38,13 +43,13 @@ export default function HomePage() {
     })()
   }, [])
 
-  const totalPrinted = books.reduce((sum, b) => sum + (b.printed_copies || 0), 0)
+  const totalPrinted = allBooks.reduce((sum, b) => sum + (b.printed_copies || 0), 0)
   const categoryBreakdown = useMemo(() => {
     const counts: Record<string, number> = {}
-    books.forEach(b => { const c = b.category || 'أخرى'; counts[c] = (counts[c] || 0) + 1 })
-    const total = books.length || 1
+    allBooks.forEach(b => { const c = b.category || 'أخرى'; counts[c] = (counts[c] || 0) + 1 })
+    const total = allBooks.length || 1
     return Object.entries(counts).map(([label, count], i) => ({ label, count, pct: Math.round((count / total) * 100), color: palette[i % palette.length] }))
-  }, [books])
+  }, [allBooks])
   const gradientStops = useMemo(() => {
     let acc = 0
     return categoryBreakdown.map(c => { const start = acc; acc += c.pct; return `${c.color} ${start}% ${acc}%` }).join(', ')
@@ -72,7 +77,7 @@ export default function HomePage() {
 
       {/* بطاقات الإحصائيات */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat title="إجمالي الكتب" value={loading ? null : books.length} icon={BookOpen} accent="#d8573a" />
+        <Stat title="إجمالي الكتب" value={loading ? null : allBooks.length} icon={BookOpen} accent="#d8573a" />
         <Stat title="إجمالي النسخ المطبوعة" value={loading ? null : totalPrinted} icon={Factory} accent="#b8752f" />
         <Stat title="أوردرات قيد التسليم" value={loading ? null : pendingOrders} icon={ShoppingCart} accent="#8a3b2e" />
         <Stat title="إجمالي المؤلفين" value={loading ? null : authorsCount} icon={Users} accent="#c9915f" />
@@ -128,7 +133,7 @@ export default function HomePage() {
             <div className="mt-6 flex flex-col items-center gap-6">
               <div className="relative flex size-[160px] items-center justify-center rounded-full" style={{ background: `conic-gradient(${gradientStops})` }}>
                 <div className="flex size-[110px] flex-col items-center justify-center rounded-full bg-white text-center shadow-inner">
-                  <strong className="font-serif text-3xl font-semibold text-[#2a211c]">{books.length}</strong>
+                  <strong className="font-serif text-3xl font-semibold text-[#2a211c]">{allBooks.length}</strong>
                   <span className="text-[10px] text-[#a3907e]">كتاب</span>
                 </div>
               </div>

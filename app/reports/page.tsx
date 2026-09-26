@@ -8,6 +8,7 @@ import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
@@ -50,11 +51,13 @@ export default function ReportsPage() {
 
     try {
       if (type === 'books') {
-        let query = supabase.from('books').select('*, book_authors(authors(name))')
-        if (dateFrom) query = query.gte('contract_date', dateFrom)
-        if (dateTo) query = query.lte('contract_date', dateTo)
-        if (categoryFilter !== 'الكل') query = query.eq('category', categoryFilter)
-        const { data } = await query.order('created_at', { ascending: false })
+        const { data } = await fetchAll((from, to) => {
+          let query = supabase.from('books').select('*, book_authors(authors(name))').is('deleted_at', null)
+          if (dateFrom) query = query.gte('contract_date', dateFrom)
+          if (dateTo) query = query.lte('contract_date', dateTo)
+          if (categoryFilter !== 'الكل') query = query.eq('category', categoryFilter)
+          return query.order('created_at', { ascending: false }).order('id').range(from, to)
+        })
         const rows = (data ?? []).map((b: any) => ({
           'اسم الكتاب': b.title,
           'المؤلف': b.book_authors?.map((a: any) => a.authors.name).join('، ') || '',
@@ -81,7 +84,7 @@ export default function ReportsPage() {
       }
 
       if (type === 'authors') {
-        const { data: authors } = await supabase.from('authors').select('*, book_authors(books(title))').order('name')
+        const { data: authors } = await fetchAll((from, to) => supabase.from('authors').select('*, book_authors(books(title))').order('name').order('id').range(from, to))
         const rows = (authors ?? []).map((a: any) => ({
           'اسم المؤلف': a.name,
           'التليفون': a.phone || '',
@@ -92,7 +95,7 @@ export default function ReportsPage() {
       }
 
       if (type === 'printing') {
-        const { data } = await supabase.from('printing_jobs').select('*, books(title, book_authors(authors(name)))').order('created_at', { ascending: false })
+        const { data } = await fetchAll((from, to) => supabase.from('printing_jobs').select('*, books(title, book_authors(authors(name)))').order('created_at', { ascending: false }).order('id').range(from, to))
         const rows = (data ?? []).map((j: any) => ({
           'اسم الكتاب': j.books?.title || '',
           'المؤلف': j.books?.book_authors?.map((a: any) => a.authors.name).join('، ') || '',
@@ -109,8 +112,8 @@ export default function ReportsPage() {
       }
 
       if (type === 'warehouse') {
-        const { data: books } = await supabase.from('books').select('id, title, book_authors(authors(name))').order('title')
-        const { data: logs } = await supabase.from('warehouse_log').select('*').order('received_at', { ascending: false })
+        const { data: books } = await fetchAll((from, to) => supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title').order('id').range(from, to))
+        const { data: logs } = await fetchAll((from, to) => supabase.from('warehouse_log').select('*').order('received_at', { ascending: false }).order('id').range(from, to))
 
         // ملخص المخزون
         const summaryRows = (books ?? []).map((b: any) => {
@@ -139,10 +142,12 @@ export default function ReportsPage() {
       }
 
       if (type === 'orders') {
-        let query = supabase.from('orders').select('*, order_items(quantity, unit_price, books(title))').order('order_date', { ascending: false })
-        if (dateFrom) query = query.gte('order_date', dateFrom)
-        if (dateTo) query = query.lte('order_date', dateTo)
-        const { data } = await query
+        const { data } = await fetchAll((from, to) => {
+          let query = supabase.from('orders').select('*, order_items(quantity, unit_price, books(title))').is('deleted_at', null)
+          if (dateFrom) query = query.gte('order_date', dateFrom)
+          if (dateTo) query = query.lte('order_date', dateTo)
+          return query.order('order_date', { ascending: false }).order('id').range(from, to)
+        })
         const rows = (data ?? []).map((o: any) => ({
           'الكتب': o.order_items?.map((i: any) => `${i.books?.title} (×${i.quantity})`).join('، ') || '',
           'اسم العميل': o.customer_name,
@@ -159,9 +164,9 @@ export default function ReportsPage() {
       }
 
       if (type === 'platforms') {
-        const { data: books } = await supabase.from('books').select('id, title').order('title')
-        const { data: platforms } = await supabase.from('platforms').select('id, name').order('name')
-        const { data: links } = await supabase.from('book_platforms').select('*')
+        const { data: books } = await fetchAll((from, to) => supabase.from('books').select('id, title').is('deleted_at', null).order('title').order('id').range(from, to))
+        const { data: platforms } = await fetchAll((from, to) => supabase.from('platforms').select('id, name').order('name').order('id').range(from, to))
+        const { data: links } = await fetchAll((from, to) => supabase.from('book_platforms').select('*').order('book_id').order('platform_id').range(from, to))
         const rows = (books ?? []).map((b: any) => {
           const row: Record<string, string> = { 'اسم الكتاب': b.title }
           ;(platforms ?? []).forEach((p: any) => {

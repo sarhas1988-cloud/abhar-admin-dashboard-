@@ -9,6 +9,7 @@ import { openPrivateFile, safeStoragePath, toStoragePath } from '@/lib/storage'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 
 const categories = ['رواية', 'شعر', 'تطوير ذات', 'أدب', 'أطفال', 'ديني', 'أخرى']
 const paperTypes = ['أبيض', 'بلك', 'art']
@@ -45,8 +46,9 @@ export default function ContractsPage() {
 
   const loadBooks = async () => {
     setLoading(true)
-    const { data } = await supabase.from('books').select('*, book_authors(authors(id, name))').is('deleted_at', null).order('created_at', { ascending: false })
-    setBooks((data as any) ?? [])
+    const { data, error } = await fetchAll((from, to) => supabase.from('books').select('*, book_authors(authors(id, name))').is('deleted_at', null).order('created_at', { ascending: false }).order('id').range(from, to))
+    if (error) toast('حصل خطأ في تحميل الكتب: ' + error.message, 'error')
+    setBooks(data)
     setLoading(false)
   }
   useEffect(() => { loadBooks() }, [])
@@ -106,33 +108,27 @@ export default function ContractsPage() {
       parent_book_id: newEdition && form.parentBookId ? form.parentBookId : null,
     }
 
-    let bookId: string
-    if (editingBook) {
-      const { error: updateError } = await supabase.from('books').update(payload).eq('id', editingBook.id)
-      if (updateError) { setSaving(false); toast('حصل خطأ في الحفظ: ' + updateError.message, 'error'); return }
-      bookId = editingBook.id
-      // contract removed or replaced -> delete the old file, unless another book still points to it
-      if (oldContract && contractUrl !== oldContract) {
-        const oldPath = toStoragePath('contract-pdfs', oldContract)
-        const { count } = await supabase.from('books').select('id', { count: 'exact', head: true }).or(`contract_pdf_url.eq.${oldPath},contract_pdf_url.eq.${oldContract}`)
-        if (!count) await supabase.storage.from('contract-pdfs').remove([oldPath])
-      }
-      // update authors: remove old, re-add
-      await supabase.from('book_authors').delete().eq('book_id', bookId)
-    } else {
-      const { data: bookRow, error: bookError } = await supabase.from('books').insert(payload).select().single()
-      if (bookError || !bookRow) { setSaving(false); return }
-      bookId = bookRow.id
+    // book + authors saved in one database transaction (save_book): either everything is saved or nothing is
+    const { error: saveError } = await supabase.rpc('save_book', {
+      p_book_id: editingBook?.id ?? null,
+      p_book: payload,
+      p_authors: form.authors,
+      p_author_phone: form.phone || null,
+    })
+    if (saveError) {
+      // don't leave freshly uploaded files behind when the save failed
+      if (contractFile && contractUrl) await supabase.storage.from('contract-pdfs').remove([contractUrl])
+      if (coverFile && coverUrl) await supabase.storage.from('book-covers').remove([toStoragePath('book-covers', coverUrl)])
+      setSaving(false)
+      toast('حصل خطأ في الحفظ: ' + saveError.message, 'error')
+      return
     }
 
-    for (const authorName of form.authors) {
-      const { data: existing } = await supabase.from('authors').select('id').eq('name', authorName).maybeSingle()
-      let authorId = existing?.id
-      if (!authorId) {
-        const { data: created } = await supabase.from('authors').insert({ name: authorName, phone: form.phone }).select().single()
-        authorId = created?.id
-      }
-      if (authorId) await supabase.from('book_authors').insert({ book_id: bookId, author_id: authorId })
+    // contract removed or replaced -> delete the old file, unless another book still points to it
+    if (oldContract && contractUrl !== oldContract) {
+      const oldPath = toStoragePath('contract-pdfs', oldContract)
+      const { count } = await supabase.from('books').select('id', { count: 'exact', head: true }).or(`contract_pdf_url.eq.${oldPath},contract_pdf_url.eq.${oldContract}`)
+      if (!count) await supabase.storage.from('contract-pdfs').remove([oldPath])
     }
 
     setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setRemoveContract(false); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(wasEditing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')

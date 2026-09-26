@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import QRCode from 'qrcode'
+import { fetchAll } from '@/lib/fetchAll'
 
 export default function BookProfilePage() {
   const params = useParams<{ id: string }>()
@@ -28,14 +29,18 @@ export default function BookProfilePage() {
       const [{ data: b }, { data: p }, { data: w }, { data: o }] = await Promise.all([
         supabase.from('books').select('*, book_authors(authors(name))').eq('id', params.id).maybeSingle(),
         supabase.from('printing_jobs').select('*').eq('book_id', params.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('warehouse_log').select('quantity, received_at').eq('book_id', params.id).order('received_at', { ascending: false }),
-        supabase.from('orders').select('id, delivered').eq('book_id', params.id),
+        fetchAll((from, to) => supabase.from('warehouse_log').select('id, quantity, received_at').eq('book_id', params.id).order('received_at', { ascending: false }).order('id').range(from, to)),
+        // orders can contain several books: count through order_items, skip deleted orders
+        fetchAll((from, to) => supabase.from('order_items').select('order_id, orders!inner(id, delivered, deleted_at)').eq('book_id', params.id).is('orders.deleted_at', null).order('order_id').range(from, to)),
       ])
       setBook(b)
       setPrinting(p)
-      setWarehouseTotal((w ?? []).reduce((sum, r) => sum + r.quantity, 0))
+      setWarehouseTotal((w ?? []).reduce((sum: number, r: any) => sum + (r.quantity || 0), 0))
       setLastReceived(w?.[0]?.received_at ?? '')
-      setOrders(o ?? [])
+      // one row per order, even if the book appears twice in the same order
+      const uniqueOrders = new Map<string, any>()
+      ;(o ?? []).forEach((row: any) => { if (row.orders) uniqueOrders.set(row.orders.id, row.orders) })
+      setOrders(Array.from(uniqueOrders.values()))
       // Generate QR with public book URL
       if (b) {
         const publicUrl = `${window.location.origin}/book/${params.id}`

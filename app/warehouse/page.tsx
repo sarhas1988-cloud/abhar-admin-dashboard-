@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { fetchAll } from '@/lib/fetchAll'
 
 type Book = { id: string; title: string; book_authors: { authors: { name: string } }[] }
 type Batch = { id: string; book_id: string; received_at: string; quantity: number }
@@ -29,12 +30,13 @@ export default function WarehousePage() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: b }, { data: w }] = await Promise.all([
-      supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title'),
-      supabase.from('warehouse_log').select('*').order('received_at', { ascending: false }),
+    const [b, w] = await Promise.all([
+      fetchAll((from, to) => supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title').order('id').range(from, to)),
+      fetchAll((from, to) => supabase.from('warehouse_log').select('*').order('received_at', { ascending: false }).order('id').range(from, to)),
     ])
-    setBooks((b as any) ?? [])
-    setBatches(w ?? [])
+    if (b.error || w.error) toast('حصل خطأ في تحميل البيانات: ' + (b.error ?? w.error)!.message, 'error')
+    setBooks(b.data)
+    setBatches(w.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -50,8 +52,10 @@ export default function WarehousePage() {
     event.preventDefault()
     if (!form.bookId || !form.receivedAt || !form.quantity) return
     setSaving(true)
-    await supabase.from('warehouse_log').insert({ book_id: form.bookId, received_at: form.receivedAt, quantity: Number(form.quantity) })
+    const { error } = await supabase.from('warehouse_log').insert({ book_id: form.bookId, received_at: form.receivedAt, quantity: Number(form.quantity) })
     setSaving(false)
+    if (error) { toast('حصل خطأ في الحفظ: ' + error.message, 'error'); return }
+    toast('تمت إضافة الدفعة للمخزن')
     setForm({ bookId: '', receivedAt: '', quantity: '' })
     setFormOpen(false)
     load()
