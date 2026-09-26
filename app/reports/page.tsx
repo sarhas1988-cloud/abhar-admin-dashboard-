@@ -96,9 +96,12 @@ export default function ReportsPage() {
         const rows = (data ?? []).map((j: any) => ({
           'اسم الكتاب': j.books?.title || '',
           'المؤلف': j.books?.book_authors?.map((a: any) => a.authors.name).join('، ') || '',
+          'اسم المطبعة': j.printer_name || '',
+          'مكان الطباعة': j.printing_location || '',
           'عدد النسخ': j.copies,
           'سعر النسخة من المطبعة': j.printer_price,
           'تاريخ الدخول': j.entered_at || '',
+          'تاريخ الشحن': j.shipped_at || '',
           'تاريخ الاستلام': j.received_at || '',
           'تم تسليم الكاتب': j.delivered_to_author ? 'نعم' : 'لا',
         }))

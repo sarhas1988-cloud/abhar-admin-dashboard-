@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, ChevronDown, ClipboardList, DollarSign, Factory, Grid2X2, History, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, ShoppingCart, Trash2, Warehouse, X } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
-import { ToastProvider } from '@/components/Toast'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 
@@ -55,7 +54,6 @@ export function SharedLayout({ title, subtitle, children }: Props) {
   ].filter(i => i.show), [isAdmin, canView])
 
   return (
-    <ToastProvider>
     <main dir="rtl" className="min-h-screen bg-[#faf6f0] text-[#2a211c]">
       <NavProgress />
       <aside className={`fixed inset-y-0 right-0 z-40 flex w-[280px] flex-col border-l border-[#e8dfd3] bg-white px-5 py-6 transition-transform duration-300 lg:translate-x-0 ${menuOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
@@ -143,6 +141,5 @@ export function SharedLayout({ title, subtitle, children }: Props) {
         })}
       </nav>
     </main>
-    </ToastProvider>
   )
 }

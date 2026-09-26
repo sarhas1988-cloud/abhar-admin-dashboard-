@@ -19,13 +19,30 @@ function newToken() {
   return randomBytes(32).toString('base64url')
 }
 
+// List pending (not yet activated) invites so the admin can copy or delete them
+export async function GET() {
+  const check = await requireAdmin()
+  if (check.error) return check.error
+  const admin = createAdminClient()
+  const { data: profiles } = await admin.from('staff_profiles').select('email')
+  const activeEmails = new Set((profiles ?? []).map(p => p.email))
+  const { data, error } = await admin.from('staff_invitations').select('*').is('used_at', null)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  // reset links for existing staff also live in this table — only show real pending invites
+  const pending = (data ?? [])
+    .filter(i => !activeEmails.has(i.email))
+    .map(i => ({ email: i.email as string, created_at: (i.created_at as string | undefined) ?? null }))
+  return NextResponse.json({ pending })
+}
+
 // إضافة موظف: نولّد توكن دعوة ونرجّع لينك بتاعنا
 export async function POST(request: Request) {
   const check = await requireAdmin()
   if (check.error) return check.error
 
   const body = await request.json()
-  const { email, permissions } = body as { email: string; permissions: Record<string, { view: boolean; edit: boolean }> }
+  const { permissions } = body as { email: string; permissions: Record<string, { view: boolean; edit: boolean }> }
+  const email = String(body.email ?? '').trim().toLowerCase()
   if (!email) return NextResponse.json({ error: 'الإيميل مطلوب' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -33,6 +50,9 @@ export async function POST(request: Request) {
   // نمنع تكرار الإيميل (سواء في auth.users أو في دعوات فعّالة)
   const { data: existingProfile } = await admin.from('staff_profiles').select('id').eq('email', email).maybeSingle()
   if (existingProfile) return NextResponse.json({ error: 'الإيميل ده مسجّل قبل كده' }, { status: 400 })
+
+  // drop any older unused invite for the same email so there is only one valid link
+  await admin.from('staff_invitations').delete().eq('email', email).is('used_at', null)
 
   const token = newToken()
   const { error: inviteError } = await admin.from('staff_invitations').insert({
@@ -63,11 +83,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  for (const moduleKey of MODULES) {
-    await admin.from('staff_permissions').update({
-      can_view: permissions?.[moduleKey]?.view ?? false, can_edit: permissions?.[moduleKey]?.edit ?? false,
-    }).eq('staff_id', staffId).eq('module', moduleKey)
-  }
+  // delete + insert so modules with no existing row still get saved
+  const { error: deleteError } = await admin.from('staff_permissions').delete().eq('staff_id', staffId)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 400 })
+  const rows = MODULES.map(moduleKey => ({
+    staff_id: staffId, module: moduleKey,
+    can_view: permissions?.[moduleKey]?.view ?? false, can_edit: permissions?.[moduleKey]?.edit ?? false,
+  }))
+  const { error: insertError } = await admin.from('staff_permissions').insert(rows)
+  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 400 })
   return NextResponse.json({ success: true })
 }
 
@@ -97,7 +121,7 @@ export async function PUT(request: Request) {
 
   // لو الموظف مضاف كدعوة بس ولسه ما فعّلش → نعيد اللينك القديم أو نصدر جديد
   if (email) {
-    const { data: existing } = await admin.from('staff_invitations').select('token').eq('email', email).is('used_at', null).maybeSingle()
+    const { data: existing } = await admin.from('staff_invitations').select('token').eq('email', email).is('used_at', null).limit(1).maybeSingle()
     if (existing) return NextResponse.json({ success: true, inviteLink: `${new URL(request.url).origin}/invite/${existing.token}` })
   }
 

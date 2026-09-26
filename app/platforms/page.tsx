@@ -31,7 +31,7 @@ export default function PlatformsPage() {
   const load = async () => {
     setLoading(true)
     const [{ data: b }, { data: p }, { data: l }] = await Promise.all([
-      supabase.from('books').select('id, title, book_authors(authors(name))').order('title'),
+      supabase.from('books').select('id, title, book_authors(authors(name))').is('deleted_at', null).order('title'),
       supabase.from('platforms').select('*').order('name'),
       supabase.from('book_platforms').select('*'),
     ])

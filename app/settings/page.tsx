@@ -9,6 +9,7 @@ import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 
 export default function SettingsPage() {
+  const { toast } = useToast()
   const { isAdmin } = useStaffAccess()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
@@ -36,7 +37,15 @@ export default function SettingsPage() {
   }, [])
 
   const saveSection = async (key: string, value: any) => {
-    setSaving(key); await supabase.from('app_settings').update({ value, updated_at: new Date().toISOString() }).eq('key', key); setSaving(''); setSaved(key); setTimeout(() => setSaved(''), 2000); toast('تم حفظ الإعدادات')
+    setSaving(key)
+    // update, and create the row if it doesn't exist yet (otherwise the save silently does nothing)
+    const updatedAt = new Date().toISOString()
+    const { data: updated, error: updateError } = await supabase.from('app_settings').update({ value, updated_at: updatedAt }).eq('key', key).select('key')
+    let error = updateError
+    if (!error && (!updated || updated.length === 0)) error = (await supabase.from('app_settings').insert({ key, value, updated_at: updatedAt })).error
+    setSaving('')
+    if (error) { toast('حصل خطأ في الحفظ', 'error'); return }
+    setSaved(key); setTimeout(() => setSaved(''), 2000); toast('تم حفظ الإعدادات')
   }
   const addToList = (listKey: 'categories'|'paper_types'|'cover_types', setter: (v: string[]) => void, current: string[]) => {
     const val = newItem[listKey].trim(); if (!val || current.includes(val)) return
@@ -85,6 +94,6 @@ function SectionCard({ icon: Icon, title, desc, children }: any) {
 function SaveButton({ saving, saved, onClick }: any) {
   return <button disabled={saving} onClick={onClick} className="flex items-center gap-2 rounded-xl bg-[#d8573a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(216,87,58,0.4)] transition hover:bg-[#c04a2f] disabled:opacity-60">{saved ? <><Check size={15} />تم الحفظ</> : saving ? <><Spinner size={14} className="text-white" />جارٍ...</> : <><Save size={15} />حفظ</>}</button>
 }
-function TagList({ label, items, newVal, onNew, onAdd, onRemove }: any) {
+function TagList({ label, items, newVal, onNew, onAdd, onRemove }: { label: string; items: string[]; newVal: string; onNew: (v: string) => void; onAdd: () => void; onRemove: (item: string) => void }) {
   return <div className="mt-5 border-t border-[#ede4d7] pt-5 first:mt-0 first:border-0 first:pt-0"><p className="mb-3 text-sm font-semibold text-[#2a211c]">{label}</p><div className="flex flex-wrap gap-2">{items.map((i: string) => <span key={i} className="flex items-center gap-1.5 rounded-full bg-[#fdf9f4] px-3 py-1.5 text-xs font-medium text-[#6b5d53]">{i}<button onClick={() => onRemove(i)} className="text-[#c4b3a1] hover:text-[#c04a2f]"><X size={12} /></button></span>)}</div><div className="mt-3 flex gap-2"><input value={newVal} onChange={(e: any) => onNew(e.target.value)} onKeyDown={(e: any) => e.key === 'Enter' && (e.preventDefault(), onAdd())} placeholder="أضف جديد" className="inp max-w-xs" /><button onClick={onAdd} className="flex items-center gap-1.5 rounded-xl bg-[#faf1eb] px-3 py-2.5 text-xs font-semibold text-[#d8573a]"><Plus size={14} />إضافة</button></div></div>
 }

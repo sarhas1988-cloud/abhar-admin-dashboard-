@@ -25,10 +25,10 @@ export default function HomePage() {
     (async () => {
       setLoading(true)
       const [{ data: b }, { count: authorsC }, { count: pendingC }, { count: totalC }] = await Promise.all([
-        supabase.from('books').select('id, title, category, printed_copies, contract_date, cover_image_url, book_authors(authors(name))').order('created_at', { ascending: false }).limit(6),
+        supabase.from('books').select('id, title, category, printed_copies, contract_date, cover_image_url, book_authors(authors(name))').is('deleted_at', null).order('created_at', { ascending: false }).limit(6),
         supabase.from('authors').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivered', false),
-        supabase.from('orders').select('id', { count: 'exact', head: true }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('delivered', false),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).is('deleted_at', null),
       ])
       setBooks((b as any) ?? [])
       setAuthorsCount(authorsC ?? 0)

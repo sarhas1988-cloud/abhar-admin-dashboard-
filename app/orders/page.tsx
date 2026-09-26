@@ -46,7 +46,7 @@ export default function OrdersPage() {
   const load = async () => {
     setLoading(true)
     const [{ data: b }, { data: o }] = await Promise.all([
-      supabase.from('books').select('id, title').order('title'),
+      supabase.from('books').select('id, title').is('deleted_at', null).order('title'),
       supabase.from('orders').select('*, order_items(id, book_id, quantity, unit_price, books(id, title))').is('deleted_at', null).order('order_date', { ascending: false }),
     ])
     setBooks(b ?? [])

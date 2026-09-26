@@ -3,14 +3,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 const MODULES = ['contracts', 'printing', 'platforms', 'warehouse', 'orders'] as const
 
-// GET: نتأكد إن التوكن صالح ونرجّع الإيميل لعرضه
+// GET: validate the token and return the email
+// Invite links have no expiry — they stay valid until used once (or deleted by the admin)
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const admin = createAdminClient()
-  const { data: invite } = await admin.from('staff_invitations').select('email, used_at, expires_at').eq('token', token).maybeSingle()
+  const { data: invite } = await admin.from('staff_invitations').select('email, used_at').eq('token', token).maybeSingle()
   if (!invite) return NextResponse.json({ error: 'اللينك غير صالح' }, { status: 404 })
   if (invite.used_at) return NextResponse.json({ error: 'اللينك تم استخدامه بالفعل' }, { status: 400 })
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: 'اللينك انتهت صلاحيته' }, { status: 400 })
   return NextResponse.json({ email: invite.email })
 }
 
@@ -25,10 +25,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const { data: invite } = await admin.from('staff_invitations').select('*').eq('token', token).maybeSingle()
   if (!invite) return NextResponse.json({ error: 'اللينك غير صالح' }, { status: 404 })
   if (invite.used_at) return NextResponse.json({ error: 'اللينك تم استخدامه بالفعل' }, { status: 400 })
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: 'اللينك انتهت صلاحيته' }, { status: 400 })
 
   // لو الحساب لسه ما اتعملش في auth (دعوة جديدة) → نعمله
-  let userId: string | null = null
+  let userId: string
   const { data: existingProfile } = await admin.from('staff_profiles').select('id').eq('email', invite.email).maybeSingle()
 
   if (existingProfile) {
@@ -43,10 +42,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     userId = created.user.id
 
     const { error: profileError } = await admin.from('staff_profiles').insert({ id: userId, email: invite.email, is_admin: false, banned: false })
-    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
+    if (profileError) {
+      // roll back the auth user so the invite can be retried cleanly
+      await admin.auth.admin.deleteUser(userId)
+      return NextResponse.json({ error: profileError.message }, { status: 400 })
+    }
 
     const permissionRows = MODULES.map(moduleKey => ({
-      staff_id: userId!, module: moduleKey,
+      staff_id: userId, module: moduleKey,
       can_view: invite.permissions?.[moduleKey]?.view ?? false,
       can_edit: invite.permissions?.[moduleKey]?.edit ?? false,
     }))

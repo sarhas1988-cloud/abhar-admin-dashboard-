@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Feather, Mail, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
+import { Spinner } from '@/components/Skeleton'
 
 export default function LoginPage() {
   const router = useRouter()

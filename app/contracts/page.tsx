@@ -76,6 +76,7 @@ export default function ContractsPage() {
     if (!form.title) return
     setSaving(true)
 
+    const wasEditing = Boolean(editingBook)
     let coverUrl: string | null = editingBook?.cover_image_url ?? null
     let contractUrl: string | null = editingBook?.contract_pdf_url ?? null
     if (coverFile) {
@@ -123,7 +124,7 @@ export default function ContractsPage() {
       if (authorId) await supabase.from('book_authors').insert({ book_id: bookId, author_id: authorId })
     }
 
-    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(editing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')
+    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(wasEditing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')
   }
 
   return (

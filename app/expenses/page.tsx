@@ -33,7 +33,7 @@ export default function ExpensesPage() {
     setLoading(true)
     const [{ data: e }, { data: b }] = await Promise.all([
       supabase.from('expenses').select('*, books(id, title)').is('deleted_at', null).order('expense_date', { ascending: false }),
-      supabase.from('books').select('id, title').order('title'),
+      supabase.from('books').select('id, title').is('deleted_at', null).order('title'),
     ])
     setExpenses((e as any) ?? [])
     setBooks(b ?? [])
