@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowDownUp, BookOpen, ExternalLink, Pencil, Plus, Search, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/Toast'
+import { openPrivateFile, safeStoragePath } from '@/lib/storage'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
@@ -80,14 +81,15 @@ export default function ContractsPage() {
     let coverUrl: string | null = editingBook?.cover_image_url ?? null
     let contractUrl: string | null = editingBook?.contract_pdf_url ?? null
     if (coverFile) {
-      const path = `${Date.now()}-${coverFile.name}`
-      const { data } = await supabase.storage.from('book-covers').upload(path, coverFile)
-      if (data) coverUrl = supabase.storage.from('book-covers').getPublicUrl(data.path).data.publicUrl
+      const { data, error } = await supabase.storage.from('book-covers').upload(safeStoragePath(coverFile), coverFile)
+      if (error || !data) { setSaving(false); toast('فشل رفع صورة الغلاف: ' + (error?.message ?? ''), 'error'); return }
+      coverUrl = supabase.storage.from('book-covers').getPublicUrl(data.path).data.publicUrl
     }
     if (contractFile) {
-      const path = `${Date.now()}-${contractFile.name}`
-      const { data } = await supabase.storage.from('contract-pdfs').upload(path, contractFile)
-      if (data) contractUrl = supabase.storage.from('contract-pdfs').getPublicUrl(data.path).data.publicUrl
+      // contract-pdfs is a private bucket: store the object path, open it later with a signed URL
+      const { data, error } = await supabase.storage.from('contract-pdfs').upload(safeStoragePath(contractFile), contractFile)
+      if (error || !data) { setSaving(false); toast('فشل رفع ملف العقد: ' + (error?.message ?? ''), 'error'); return }
+      contractUrl = data.path
     }
 
     const payload = {
@@ -246,6 +248,7 @@ function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChang
 }
 
 function BookDetail({ book, onClose, onEdit }: { book: Book; onClose: () => void; onEdit?: () => void }) {
+  const { toast } = useToast()
   const rows: [string, string][] = [
     ['اذن طباعة', book.permit], ['ترقيم دولي', book.isbn], ['تصنيف العمل', book.category],
     ['عدد النسخ المطبوعة', String(book.printed_copies)], ['عدد النسخ المجانية', String(book.free_copies)],
@@ -273,7 +276,7 @@ function BookDetail({ book, onClose, onEdit }: { book: Book; onClose: () => void
         <div className="grid gap-3 p-6 sm:grid-cols-2">
           {rows.map(([label, value]) => <div key={label} className="rounded-2xl bg-[#fdf9f4] p-4"><p className="text-[11px] text-[#a3907e]">{label}</p><p className="mt-1 text-sm font-semibold text-[#2a211c]">{value || '—'}</p></div>)}
           {book.cover_image_url && <div className="flex items-center justify-center rounded-2xl bg-[#fdf9f4] p-4"><img src={book.cover_image_url} alt={`غلاف ${book.title}`} className="h-48 rounded-xl object-contain" /></div>}
-          {book.contract_pdf_url && <a href={book.contract_pdf_url} target="_blank" className="flex items-center justify-center rounded-2xl border border-[#e8dfd3] p-4 text-sm font-semibold text-[#d8573a] transition hover:bg-[#faf1eb]">فتح ملف العقد PDF</a>}
+          {book.contract_pdf_url && <button type="button" onClick={async () => { if (!(await openPrivateFile('contract-pdfs', book.contract_pdf_url!))) toast('مش قادر أفتح الملف — ممكن يكون اتمسح أو مالكش صلاحية', 'error') }} className="flex items-center justify-center rounded-2xl border border-[#e8dfd3] p-4 text-sm font-semibold text-[#d8573a] transition hover:bg-[#faf1eb]">فتح ملف العقد PDF</button>}
         </div>
       </section>
     </div>
