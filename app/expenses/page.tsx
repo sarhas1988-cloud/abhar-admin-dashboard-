@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { DollarSign, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { DollarSign, Pencil, Plus, Search, Trash2, X, Paperclip } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/Toast'
+import { openPrivateFile, safeStoragePath } from '@/lib/storage'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
@@ -61,9 +62,10 @@ export default function ExpensesPage() {
 
     let receiptUrl = editing?.receipt_url ?? null
     if (form.receiptFile) {
-      const path = `receipts/${Date.now()}-${form.receiptFile.name}`
-      const { data } = await supabase.storage.from('contract-pdfs').upload(path, form.receiptFile)
-      if (data) receiptUrl = supabase.storage.from('contract-pdfs').getPublicUrl(data.path).data.publicUrl
+      // receipts/ prefix = admin-only files inside the private contract-pdfs bucket
+      const { data, error } = await supabase.storage.from('contract-pdfs').upload(safeStoragePath(form.receiptFile, 'receipts/'), form.receiptFile)
+      if (error || !data) { setSaving(false); toast('فشل رفع الإيصال: ' + (error?.message ?? ''), 'error'); return }
+      receiptUrl = data.path
     }
 
     const payload = { book_id: form.bookId || null, category: form.category, description: form.description, amount: Number(form.amount), currency: form.currency, expense_date: form.date, receipt_url: receiptUrl }
@@ -122,7 +124,7 @@ export default function ExpensesPage() {
                     <td className="px-5 py-4 text-xs text-[#8a7969]">{exp.books?.title || <span className="text-[#c4b3a1]">عام</span>}</td>
                     <td className="px-5 py-4 font-semibold">{exp.amount.toLocaleString('en-US')} {exp.currency}</td>
                     <td className="px-5 py-4 text-xs text-[#8a7969]">{exp.expense_date}</td>
-                    <td className="px-5 py-4"><div className="flex gap-2"><button onClick={() => openEdit(exp)} className="rounded-lg border border-[#e8dfd3] p-2 text-[#6b5d53] hover:text-[#d8573a]"><Pencil size={13} /></button><button onClick={() => deleteExpense(exp.id)} className="rounded-lg border border-[#e8dfd3] p-2 text-[#c4b3a1] hover:text-[#c04a2f]"><Trash2 size={13} /></button></div></td>
+                    <td className="px-5 py-4"><div className="flex gap-2">{exp.receipt_url && <button title="عرض الإيصال" onClick={async () => { if (!(await openPrivateFile('contract-pdfs', exp.receipt_url!))) toast('مش قادر أفتح الإيصال', 'error') }} className="rounded-lg border border-[#e8dfd3] p-2 text-[#6b5d53] hover:text-[#d8573a]"><Paperclip size={13} /></button>}<button onClick={() => openEdit(exp)} className="rounded-lg border border-[#e8dfd3] p-2 text-[#6b5d53] hover:text-[#d8573a]"><Pencil size={13} /></button><button onClick={() => deleteExpense(exp.id)} className="rounded-lg border border-[#e8dfd3] p-2 text-[#c4b3a1] hover:text-[#c04a2f]"><Trash2 size={13} /></button></div></td>
                   </tr>
                 ))}</tbody>
               </table>
