@@ -25,17 +25,20 @@ function timeAgo(iso: string) {
   return `منذ ${Math.floor(diff / 86400)} يوم`
 }
 
+// keep the last result so the bell renders instantly when switching pages
+let cachedItems: Notification[] | null = null
+
 export function NotificationBell() {
-  const [items, setItems] = useState<Notification[]>([])
+  const [items, setItems] = useState<Notification[]>(cachedItems ?? [])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cachedItems)
   const boxRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   const load = async () => {
-    setLoading(true)
     const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(15)
-    setItems((data as any) ?? [])
+    cachedItems = (data as any) ?? []
+    setItems(cachedItems ?? [])
     setLoading(false)
   }
 
@@ -51,7 +54,8 @@ export function NotificationBell() {
     const unread = items.filter(i => !i.read).map(i => i.id)
     if (unread.length === 0) return
     await supabase.from('notifications').update({ read: true }).in('id', unread)
-    setItems(items.map(i => ({ ...i, read: true })))
+    cachedItems = items.map(i => ({ ...i, read: true }))
+    setItems(cachedItems)
   }
 
   const unreadCount = items.filter(i => !i.read).length

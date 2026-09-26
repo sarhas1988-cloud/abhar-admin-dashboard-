@@ -1,14 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Feather, Mail, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import { Spinner } from '@/components/Skeleton'
 
 export default function LoginPage() {
-  const router = useRouter()
   const { company } = useCompanyInfo()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,10 +20,10 @@ export default function LoginPage() {
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) { setError('البريد الإلكتروني أو كلمة المرور غير صحيحة'); return }
-    router.push('/')
-    router.refresh()
+    if (error) { setLoading(false); setError('البريد الإلكتروني أو كلمة المرور غير صحيحة'); return }
+    // Full page load instead of router.push + router.refresh: refresh() re-requested /login,
+    // the middleware redirected it (user is now logged in) and the router briefly showed a 404
+    window.location.replace('/')
   }
 
   return (

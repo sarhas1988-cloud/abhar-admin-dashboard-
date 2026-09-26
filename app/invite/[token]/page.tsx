@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function InvitePage() {
   const params = useParams<{ token: string }>()
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'loading' | 'invalid' | 'ready' | 'done'>('loading')
   const [invalidReason, setInvalidReason] = useState('')
@@ -39,7 +38,7 @@ export default function InvitePage() {
     await supabase.auth.signOut()
     await supabase.auth.signInWithPassword({ email: data.email, password })
     setStatus('done')
-    setTimeout(() => { router.push('/'); router.refresh() }, 800)
+    setTimeout(() => window.location.replace('/'), 800)
   }
 
   return (

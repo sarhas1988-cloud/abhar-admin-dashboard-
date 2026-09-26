@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
+import { setCompanyInfoCache } from '@/lib/useCompanyInfo'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -45,6 +46,7 @@ export default function SettingsPage() {
     if (!error && (!updated || updated.length === 0)) error = (await supabase.from('app_settings').insert({ key, value, updated_at: updatedAt })).error
     setSaving('')
     if (error) { toast('حصل خطأ في الحفظ', 'error'); return }
+    if (key === 'company') setCompanyInfoCache(value)
     setSaved(key); setTimeout(() => setSaved(''), 2000); toast('تم حفظ الإعدادات')
   }
   const addToList = (listKey: 'categories'|'paper_types'|'cover_types', setter: (v: string[]) => void, current: string[]) => {

@@ -1,11 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SetPasswordPage() {
-  const router = useRouter()
   const [sessionEmail, setSessionEmail] = useState('')
   const [isAdminAccount, setIsAdminAccount] = useState(false)
   const [checking, setChecking] = useState(true)
@@ -37,15 +35,13 @@ export default function SetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (error) { setError('حصل خطأ، جرّبي تاني أو اطلبي دعوة جديدة'); return }
-    router.push('/')
-    router.refresh()
+    window.location.replace('/')
   }
 
   const signOutAndLeave = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    window.location.replace('/login')
   }
 
   return (
