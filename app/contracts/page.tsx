@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowDownUp, BookOpen, ExternalLink, Pencil, Plus, Search, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/Toast'
-import { openPrivateFile, safeStoragePath } from '@/lib/storage'
+import { openPrivateFile, safeStoragePath, toStoragePath } from '@/lib/storage'
 import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
@@ -40,6 +40,7 @@ export default function ContractsPage() {
   const [form, setForm] = useState(emptyForm)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
+  const [removeContract, setRemoveContract] = useState(false)
   const supabase = createClient()
 
   const loadBooks = async () => {
@@ -57,7 +58,7 @@ export default function ContractsPage() {
 
   const setField = (key: string, value: any) => setForm(current => ({ ...current, [key]: value }))
 
-  const openCreate = () => { setEditingBook(null); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(true) }
+  const openCreate = () => { setEditingBook(null); setForm(emptyForm); setCoverFile(null); setContractFile(null); setRemoveContract(false); setNewEdition(false); setFormOpen(true) }
   const openEdit = (book: Book) => {
     setEditingBook(book)
     setForm({
@@ -69,7 +70,7 @@ export default function ContractsPage() {
       date: book.contract_date || '', season: book.season || '', translator: book.translator || '',
       coverType: book.cover_type || '', coverNotes: book.cover_notes || '', parentBookId: book.parent_book_id || '',
     })
-    setCoverFile(null); setContractFile(null); setNewEdition(Boolean(book.parent_book_id)); setFormOpen(true)
+    setCoverFile(null); setContractFile(null); setRemoveContract(false); setNewEdition(Boolean(book.parent_book_id)); setFormOpen(true)
   }
 
   const submit = async (event: React.FormEvent) => {
@@ -79,7 +80,8 @@ export default function ContractsPage() {
 
     const wasEditing = Boolean(editingBook)
     let coverUrl: string | null = editingBook?.cover_image_url ?? null
-    let contractUrl: string | null = editingBook?.contract_pdf_url ?? null
+    const oldContract = editingBook?.contract_pdf_url ?? null
+    let contractUrl: string | null = removeContract ? null : oldContract
     if (coverFile) {
       const { data, error } = await supabase.storage.from('book-covers').upload(safeStoragePath(coverFile), coverFile)
       if (error || !data) { setSaving(false); toast('فشل رفع صورة الغلاف: ' + (error?.message ?? ''), 'error'); return }
@@ -106,8 +108,15 @@ export default function ContractsPage() {
 
     let bookId: string
     if (editingBook) {
-      await supabase.from('books').update(payload).eq('id', editingBook.id)
+      const { error: updateError } = await supabase.from('books').update(payload).eq('id', editingBook.id)
+      if (updateError) { setSaving(false); toast('حصل خطأ في الحفظ: ' + updateError.message, 'error'); return }
       bookId = editingBook.id
+      // contract removed or replaced -> delete the old file, unless another book still points to it
+      if (oldContract && contractUrl !== oldContract) {
+        const oldPath = toStoragePath('contract-pdfs', oldContract)
+        const { count } = await supabase.from('books').select('id', { count: 'exact', head: true }).or(`contract_pdf_url.eq.${oldPath},contract_pdf_url.eq.${oldContract}`)
+        if (!count) await supabase.storage.from('contract-pdfs').remove([oldPath])
+      }
       // update authors: remove old, re-add
       await supabase.from('book_authors').delete().eq('book_id', bookId)
     } else {
@@ -126,7 +135,7 @@ export default function ContractsPage() {
       if (authorId) await supabase.from('book_authors').insert({ book_id: bookId, author_id: authorId })
     }
 
-    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(wasEditing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')
+    setSaving(false); setForm(emptyForm); setCoverFile(null); setContractFile(null); setRemoveContract(false); setNewEdition(false); setFormOpen(false); setEditingBook(null); loadBooks(); toast(wasEditing ? 'تم تعديل الكتاب' : 'تمت إضافة الكتاب')
   }
 
   return (
@@ -174,13 +183,13 @@ export default function ContractsPage() {
         </>
       )}
 
-      {formOpen && <BookFormModal form={form} setField={setField} newEdition={newEdition} setNewEdition={setNewEdition} onCoverChange={setCoverFile} onContractChange={setContractFile} coverFile={coverFile} contractFile={contractFile} onClose={() => { setFormOpen(false); setEditingBook(null) }} onSubmit={submit} books={books} saving={saving} editing={editingBook} />}
+      {formOpen && <BookFormModal form={form} setField={setField} newEdition={newEdition} setNewEdition={setNewEdition} onCoverChange={setCoverFile} onContractChange={(file: File | null) => { setContractFile(file); if (file) setRemoveContract(false) }} coverFile={coverFile} contractFile={contractFile} removeContract={removeContract} setRemoveContract={setRemoveContract} onClose={() => { setFormOpen(false); setEditingBook(null) }} onSubmit={submit} books={books} saving={saving} editing={editingBook} />}
       {detail && <BookDetail book={detail} onClose={() => setDetail(null)} onEdit={canEdit('contracts') ? () => { setDetail(null); openEdit(detail) } : undefined} />}
     </SharedLayout>
   )
 }
 
-function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChange, onContractChange, coverFile, contractFile, onClose, onSubmit, books, saving, editing }: any) {
+function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChange, onContractChange, coverFile, contractFile, removeContract, setRemoveContract, onClose, onSubmit, books, saving, editing }: any) {
   const [authorInput, setAuthorInput] = useState('')
   const addAuthor = () => { if (authorInput.trim() && !form.authors.includes(authorInput.trim())) { setField('authors', [...form.authors, authorInput.trim()]); setAuthorInput('') } }
   return (
@@ -224,12 +233,19 @@ function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChang
           </div>
           {newEdition && <Field label="الكتاب الأصلي"><select value={form.parentBookId} onChange={e => setField('parentBookId', e.target.value)} className="inp"><option value="">اختر</option>{books.map((b: any) => <option key={b.id} value={b.id}>{b.title}</option>)}</select></Field>}
 
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4c4b0] bg-[#fdf9f4] p-6 text-center transition hover:border-[#d8573a]">
+          <div className="flex flex-col gap-2">
+          <label className="flex flex-1 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4c4b0] bg-[#fdf9f4] p-6 text-center transition hover:border-[#d8573a]">
             <Upload size={20} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع ملف PDF للعقد</span>
             {contractFile && <span className="mt-1 text-[11px] text-[#4a7a2c]">{contractFile.name}</span>}
-            {!contractFile && editing?.contract_pdf_url && <span className="mt-1 text-[11px] text-[#8a7969]">ملف موجود — ارفع جديد لاستبداله</span>}
-            <input type="file" accept="application/pdf" onChange={e => onContractChange(e.target.files?.[0] ?? null)} className="sr-only" />
+            {!contractFile && editing?.contract_pdf_url && !removeContract && <span className="mt-1 text-[11px] text-[#8a7969]">ملف موجود — ارفع جديد لاستبداله</span>}
+            <input type="file" accept="application/pdf" onChange={e => { onContractChange(e.target.files?.[0] ?? null); e.target.value = '' }} className="sr-only" />
           </label>
+          {!contractFile && editing?.contract_pdf_url && (
+            removeContract
+              ? <div className="flex items-center justify-between rounded-xl bg-[#f7dbd3] px-3 py-2 text-[11px] text-[#c04a2f]"><span>العقد هيتشال نهائياً لما تضغطي حفظ</span><button type="button" onClick={() => setRemoveContract(false)} className="font-semibold underline">تراجع</button></div>
+              : <button type="button" onClick={() => setRemoveContract(true)} className="self-start text-[11px] font-semibold text-[#c04a2f] hover:underline">إزالة ملف العقد</button>
+          )}
+          </div>
           <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d4c4b0] bg-[#fdf9f4] p-6 text-center transition hover:border-[#d8573a]">
             <Upload size={20} className="text-[#d8573a]" /><span className="mt-2 text-xs font-semibold text-[#6b5d53]">رفع صورة الغلاف</span>
             {coverFile && <span className="mt-1 text-[11px] text-[#4a7a2c]">{coverFile.name}</span>}
