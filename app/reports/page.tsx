@@ -9,6 +9,7 @@ import { useStaffAccess } from '@/lib/useStaffAccess'
 import { useCompanyInfo } from '@/lib/useCompanyInfo'
 import { SharedLayout } from '@/components/SharedLayout'
 import { fetchAll } from '@/lib/fetchAll'
+import { useBookLists } from '@/lib/useBookLists'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
@@ -30,6 +31,7 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('الكل')
+  const { categories } = useBookLists()
   const supabase = createClient()
 
   const exportReport = async (type: ReportType) => {
@@ -211,7 +213,7 @@ export default function ReportsPage() {
             <label className="label">تصنيف الكتاب (تقرير الكتب فقط)</label>
             <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="inp">
               <option>الكل</option>
-              <option>رواية</option><option>شعر</option><option>تطوير ذات</option><option>أدب</option><option>أطفال</option><option>ديني</option><option>أخرى</option>
+              {categories.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
         </div>
