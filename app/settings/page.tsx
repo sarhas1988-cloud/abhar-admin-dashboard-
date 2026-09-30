@@ -8,6 +8,7 @@ import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 import { setCompanyInfoCache } from '@/lib/useCompanyInfo'
+import { clearBookListsCache } from '@/lib/useBookLists'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -47,6 +48,7 @@ export default function SettingsPage() {
     setSaving('')
     if (error) { toast('حصل خطأ في الحفظ', 'error'); return }
     if (key === 'company') setCompanyInfoCache(value)
+    if (key === 'categories' || key === 'paper_types' || key === 'cover_types') clearBookListsCache()
     setSaved(key); setTimeout(() => setSaved(''), 2000); toast('تم حفظ الإعدادات')
   }
   const addToList = (listKey: 'categories'|'paper_types'|'cover_types', setter: (v: string[]) => void, current: string[]) => {
