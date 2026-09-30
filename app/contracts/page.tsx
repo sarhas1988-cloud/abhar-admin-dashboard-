@@ -10,10 +10,8 @@ import { TableSkeleton, Spinner } from '@/components/Skeleton'
 import { useStaffAccess } from '@/lib/useStaffAccess'
 import { SharedLayout } from '@/components/SharedLayout'
 import { fetchAll } from '@/lib/fetchAll'
+import { useBookLists, withCurrent } from '@/lib/useBookLists'
 
-const categories = ['رواية', 'شعر', 'تطوير ذات', 'أدب', 'أطفال', 'ديني', 'أخرى']
-const paperTypes = ['أبيض', 'بلك', 'art']
-const coverTypes = ['سوفت', 'هارد']
 const emptyForm = { permit: '', isbn: '', title: '', authors: [] as string[], category: '', copies: '', freeCopies: '', size: '', paper: '', ink: '', summary: '', profit: '', phone: '', egp: '', aed: '', sar: '', usd: '', date: '', season: '', translator: '', coverType: '', coverNotes: '', parentBookId: '' }
 
 type Book = {
@@ -26,6 +24,7 @@ type Book = {
 }
 
 export default function ContractsPage() {
+  const { categories } = useBookLists()
   const { toast } = useToast()
   const { loading: accessLoading, canView, canEdit } = useStaffAccess()
   const [query, setQuery] = useState('')
@@ -186,6 +185,7 @@ export default function ContractsPage() {
 }
 
 function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChange, onContractChange, coverFile, contractFile, removeContract, setRemoveContract, onClose, onSubmit, books, saving, editing }: any) {
+  const { categories, paperTypes, coverTypes } = useBookLists()
   const [authorInput, setAuthorInput] = useState('')
   const addAuthor = () => { if (authorInput.trim() && !form.authors.includes(authorInput.trim())) { setField('authors', [...form.authors, authorInput.trim()]); setAuthorInput('') } }
   return (
@@ -205,13 +205,13 @@ function BookFormModal({ form, setField, newEdition, setNewEdition, onCoverChang
           <Field label="اسم المترجم"><input value={form.translator} onChange={e => setField('translator', e.target.value)} className="inp" /></Field>
           <Field label="اذن طباعة"><input value={form.permit} onChange={e => setField('permit', e.target.value)} className="inp" /></Field>
           <Field label="ترقيم دولي / ISBN"><input value={form.isbn} onChange={e => setField('isbn', e.target.value)} className="inp" /></Field>
-          <Field label="تصنيف العمل"><select value={form.category} onChange={e => setField('category', e.target.value)} className="inp"><option value="">اختر</option>{categories.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="تصنيف العمل"><select value={form.category} onChange={e => setField('category', e.target.value)} className="inp"><option value="">اختر</option>{withCurrent(categories, form.category).map(o => <option key={o}>{o}</option>)}</select></Field>
           <Field label="عدد النسخ المطبوعة"><input type="number" value={form.copies} onChange={e => setField('copies', e.target.value)} className="inp" /></Field>
           <Field label="عدد النسخ المجانية"><input type="number" value={form.freeCopies} onChange={e => setField('freeCopies', e.target.value)} className="inp" /></Field>
           <Field label="مقاس الكتاب"><input value={form.size} onChange={e => setField('size', e.target.value)} className="inp" /></Field>
-          <Field label="نوع الورق"><select value={form.paper} onChange={e => setField('paper', e.target.value)} className="inp"><option value="">اختر</option>{paperTypes.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="نوع الورق"><select value={form.paper} onChange={e => setField('paper', e.target.value)} className="inp"><option value="">اختر</option>{withCurrent(paperTypes, form.paper).map(o => <option key={o}>{o}</option>)}</select></Field>
           <Field label="لون الطباعة"><select value={form.ink} onChange={e => setField('ink', e.target.value)} className="inp"><option value="">اختر</option><option>أبيض وأسود</option><option>ملون</option></select></Field>
-          <Field label="الغلاف"><select value={form.coverType} onChange={e => setField('coverType', e.target.value)} className="inp"><option value="">اختر</option>{coverTypes.map(o => <option key={o}>{o}</option>)}</select></Field>
+          <Field label="الغلاف"><select value={form.coverType} onChange={e => setField('coverType', e.target.value)} className="inp"><option value="">اختر</option>{withCurrent(coverTypes, form.coverType).map(o => <option key={o}>{o}</option>)}</select></Field>
           <Field label="ملاحظات الغلاف"><input value={form.coverNotes} onChange={e => setField('coverNotes', e.target.value)} className="inp" placeholder="اختياري" /></Field>
           <Field label="نسبة الأرباح %"><input type="number" value={form.profit} onChange={e => setField('profit', e.target.value)} className="inp" /></Field>
           <Field label="تليفون الكاتب"><input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)} className="inp" /></Field>
